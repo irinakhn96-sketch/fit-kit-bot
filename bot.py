@@ -730,50 +730,55 @@ async def get_fs_token():
 
 
 async def fs_search_handler(request):
-    headers = {
+    cors = {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
     }
     if request.method == "OPTIONS":
-        return web.Response(headers=headers)
+        return web.Response(headers=cors)
     q = request.query.get("q", "")
     if not q:
-        return web.json_response({"foods": []}, headers=headers)
+        return web.json_response({"foods": []}, headers=cors)
+    result = []
     try:
-        token = await get_fs_token()
-        async with aiohttp.ClientSession() as session:
-            resp = await session.get(
-                "https://platform.fatsecret.com/rest/server.api",
-                params={"method": "foods.search", "search_expression": q,
-                        "format": "json", "max_results": 10, "language": "ru"},
-                headers={"Authorization": f"Bearer {token}"}
-            )
-            data = await resp.json()
-            foods = data.get("foods", {}).get("food", [])
-            if isinstance(foods, dict):
-                foods = [foods]
-            result = []
-            for f in foods:
-                desc = f.get("food_description", "")
-                # Parse: Per 100g - Calories: 113kcal | Fat: 1.90g | Carbs: 0.38g | Protein: 23.62g
+        off_headers = {"User-Agent": "FitKitApp/1.0 (fitness tracker; contact@fitkit.app)"}
+        async with aiohttp.ClientSession(headers=off_headers) as session:
+            url = f"https://world.openfoodfacts.org/cgi/search.pl"
+            params = {
+                "search_terms": q, "search_simple": "1", "action": "process",
+                "json": "1", "page_size": "10",
+                "fields": "product_name,product_name_ru,nutriments,brands,code"
+            }
+            resp = await session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=8))
+            if resp.status == 200:
+                data = await resp.json(content_type=None)
                 import re
-                cal = re.search(r'Calories:\s*([\d.]+)', desc)
-                fat = re.search(r'Fat:\s*([\d.]+)', desc)
-                carbs = re.search(r'Carbs:\s*([\d.]+)', desc)
-                prot = re.search(r'Protein:\s*([\d.]+)', desc)
-                result.append({
-                    "name": f.get("food_name", ""),
-                    "brand": f.get("brand_name", ""),
-                    "cal": float(cal.group(1)) if cal else 0,
-                    "p": float(prot.group(1)) if prot else 0,
-                    "f": float(fat.group(1)) if fat else 0,
-                    "c": float(carbs.group(1)) if carbs else 0,
-                })
-            return web.json_response({"foods": result}, headers=headers)
+                for p in data.get("products", []):
+                    nm = (p.get("product_name_ru") or p.get("product_name") or "").strip()
+                    if not nm or len(nm) < 2:
+                        continue
+                    n = p.get("nutriments", {})
+                    cal = n.get("energy-kcal_100g") or n.get("energy-kcal") or 0
+                    if not cal:
+                        kj = n.get("energy_100g") or 0
+                        cal = round(kj / 4.184, 1) if kj else 0
+                    prot = n.get("proteins_100g") or 0
+                    fat = n.get("fat_100g") or 0
+                    carbs = n.get("carbohydrates_100g") or 0
+                    if cal and float(cal) > 0:
+                        brand = (p.get("brands") or "").split(",")[0].strip()
+                        result.append({
+                            "name": nm,
+                            "brand": brand,
+                            "cal": round(float(cal), 1),
+                            "p": round(float(prot), 1),
+                            "f": round(float(fat), 1),
+                            "c": round(float(carbs), 1),
+                        })
     except Exception as e:
-        logger.error(f"FatSecret error: {e}")
-        return web.json_response({"foods": [], "error": str(e)}, headers=headers)
+        logger.error(f"Food search error: {e}")
+    return web.json_response({"foods": result}, headers=cors)
 
 
 async def fs_barcode_handler(request):

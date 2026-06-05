@@ -362,7 +362,7 @@ body{display:flex;flex-direction:column;max-width:430px;margin:0 auto}
 <!-- Food search -->
 <div class="ov" id="m-food-search">
   <div class="modal">
-    <div class="modal-t">🔍 Найти продукт</div>
+    <div class="modal-t">🔍 Поиск продукта</div>
     <div class="ig"><label class="lbl">Приём пищи</label>
       <select class="sel" id="fs-meal">
         <option value="breakfast">🌅 Завтрак</option><option value="snack">🍎 Перекус</option>
@@ -900,13 +900,14 @@ async function doSearch(){
       results.push({name:name.charAt(0).toUpperCase()+name.slice(1),cal:v[0],p:v[1],f:v[2],c:v[3],src:'local'});
   }
   // 2. Open Food Facts - Russian + World
+  const offHeaders={'User-Agent':'FitKitApp/1.0 (https://github.com/irinakhn96-sketch/fit-kit-bot)'};
   const searches=[
     `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=8&fields=product_name,product_name_ru,nutriments,brands&lc=ru&cc=ru`,
-    `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=5&fields=product_name,nutriments,brands`
+    `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=5&fields=product_name,product_name_ru,nutriments,brands`
   ];
   for(const url of searches){
     try{
-      const r=await fetch(url);
+      const r=await fetch(url,{headers:offHeaders});
       if(!r.ok)continue;
       const d=await r.json();
       for(const p of(d.products||[])){
@@ -942,7 +943,7 @@ async function doSearch(){
   const q=document.getElementById('fs-q').value.trim();
   if(!q){toast('Введи название');return}
   const res=document.getElementById('fs-results');
-  res.innerHTML='<div style="color:var(--text2);font-size:12px;text-align:center;padding:14px">🔍 Ищу в базе FatSecret...</div>';
+  res.innerHTML='<div style="color:var(--text2);font-size:12px;text-align:center;padding:14px">🔍 Ищу...</div>';
   document.getElementById('fs-gram-block').style.display='none';
   curFood=null;
   let results=[];
