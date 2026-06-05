@@ -55,10 +55,10 @@ class SetCycleDay(StatesGroup):
 def main_keyboard():
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="🏋️ Тренировка сегодня"), KeyboardButton(text="📊 Мой прогресс")],
-            [KeyboardButton(text="🍽 Дневник питания"), KeyboardButton(text="📋 История тренировок")],
-            [KeyboardButton(text="🥗 Питание"), KeyboardButton(text="⚖️ Мои веса")],
-            [KeyboardButton(text="🌸 Фаза цикла")],
+            [KeyboardButton(text="🏋️ Тренировка сегодня"), KeyboardButton(text="📋 История тренировок")],
+            [KeyboardButton(text="🍽 Дневник питания"), KeyboardButton(text="⚖️ Мой вес")],
+            [KeyboardButton(text="📈 Прогресс упражнений"), KeyboardButton(text="📊 Мой прогресс")],
+            [KeyboardButton(text="🥗 Питание"), KeyboardButton(text="🌸 Фаза цикла")],
         ],
         resize_keyboard=True
     )
@@ -504,6 +504,7 @@ async def show_progress(message: types.Message):
 async def main():
     await db.init_db()
     await db.init_food_db()
+    await db.init_bodyweight_db()
     logger.info("Бот запущен!")
     await dp.start_polling(bot)
 
@@ -715,4 +716,171 @@ async def food_delete_last(callback: types.CallbackQuery):
         )
     else:
         await callback.message.answer("Нет записей для удаления.")
+    await callback.answer()
+
+
+# ═══════════════════════════════════════════
+# ВЕС ТЕЛА
+# ═══════════════════════════════════════════
+
+class LogBodyWeight(StatesGroup):
+    entering_weight = State()
+    entering_note = State()
+
+
+@dp.message(F.text == "⚖️ Мой вес")
+async def body_weight_menu(message: types.Message):
+    history = await db.get_body_weight_history(limit=7)
+
+    text = "⚖️ Мой вес\n\n"
+
+    if history:
+        # Последний вес
+        last = history[0]
+        text += f"Последний: {last['weight']} кг ({last['log_date']})\n"
+
+        # Динамика
+        if len(history) >= 2:
+            diff = round(last['weight'] - history[-1]['weight'], 1)
+            arrow = "📉" if diff < 0 else "📈" if diff > 0 else "➡️"
+            text += f"{arrow} За {len(history)} замеров: {'+' if diff > 0 else ''}{diff} кг\n"
+
+        text += "\nИстория:\n"
+        for entry in history:
+            note = f" — {entry['note']}" if entry['note'] else ""
+            text += f"📅 {entry['log_date']}: {entry['weight']} кг{note}\n"
+    else:
+        text += "Пока нет записей. Начни отслеживать свой вес!\n"
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="➕ Записать вес", callback_data="bw_add")],
+        [InlineKeyboardButton(text="📊 Вся история", callback_data="bw_history")],
+    ])
+    await message.answer(text, reply_markup=kb)
+
+
+@dp.callback_query(F.data == "bw_add")
+async def bw_add_start(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer("Введи свой вес в кг (например: 53.2):")
+    await state.set_state(LogBodyWeight.entering_weight)
+    await callback.answer()
+
+
+@dp.message(LogBodyWeight.entering_weight)
+async def bw_enter_weight(message: types.Message, state: FSMContext):
+    try:
+        weight = float(message.text.replace(",", "."))
+        if weight < 30 or weight > 200:
+            await message.answer("Введи адекватный вес (30–200 кг)")
+            return
+        await state.update_data(weight=weight)
+        await message.answer(
+            f"Вес {weight} кг записан!\n\nДобавить заметку? (например: после тренировки, утром)\nИли напиши 'нет' чтобы пропустить."
+        )
+        await state.set_state(LogBodyWeight.entering_note)
+    except ValueError:
+        await message.answer("Введи число, например: 53.2")
+
+
+@dp.message(LogBodyWeight.entering_note)
+async def bw_enter_note(message: types.Message, state: FSMContext):
+    note = "" if message.text.lower() in ["нет", "no", "-"] else message.text.strip()
+    data = await state.get_data()
+
+    await db.init_bodyweight_db()
+    await db.save_body_weight(
+        weight=data['weight'],
+        log_date=date.today(),
+        note=note
+    )
+
+    # Проверяем динамику
+    history = await db.get_body_weight_history(limit=2)
+    text = f"✅ Записано: {data['weight']} кг\n📅 {date.today().strftime('%d.%m.%Y')}"
+    if len(history) >= 2:
+        diff = round(history[0]['weight'] - history[1]['weight'], 1)
+        arrow = "📉" if diff < 0 else "📈" if diff > 0 else "➡️"
+        text += f"\n\n{arrow} Изменение: {'+' if diff > 0 else ''}{diff} кг с прошлого замера"
+
+    await message.answer(text, reply_markup=main_keyboard())
+    await state.clear()
+
+
+@dp.callback_query(F.data == "bw_history")
+async def bw_history(callback: types.CallbackQuery):
+    history = await db.get_body_weight_history(limit=30)
+    if not history:
+        await callback.message.answer("Нет записей.")
+        await callback.answer()
+        return
+
+    text = "📊 Вся история веса:\n\n"
+    for entry in history:
+        note = f" — {entry['note']}" if entry['note'] else ""
+        text += f"📅 {entry['log_date']}: {entry['weight']} кг{note}\n"
+
+    # Мин/макс
+    weights = [e['weight'] for e in history]
+    text += f"\nМинимум: {min(weights)} кг\nМаксимум: {max(weights)} кг"
+    if len(weights) >= 2:
+        diff = round(history[0]['weight'] - history[-1]['weight'], 1)
+        text += f"\nОбщее изменение: {'+' if diff > 0 else ''}{diff} кг"
+
+    await callback.message.answer(text)
+    await callback.answer()
+
+
+# ═══════════════════════════════════════════
+# ИСТОРИЯ ПО УПРАЖНЕНИЯМ
+# ═══════════════════════════════════════════
+
+@dp.message(F.text == "📈 Прогресс упражнений")
+async def exercise_progress_menu(message: types.Message):
+    exercises = await db.get_all_exercises_with_logs()
+
+    if not exercises:
+        await message.answer(
+            "Пока нет записей с весами.\n"
+            "Нажми '📝 Записать вес' под упражнением во время тренировки!"
+        )
+        return
+
+    buttons = []
+    for ex in exercises[:15]:
+        buttons.append([InlineKeyboardButton(
+            text=ex[:40],
+            callback_data=f"exprog_{ex[:30]}"
+        )])
+
+    kb = InlineKeyboardMarkup(inline_keyboard=buttons)
+    await message.answer("Выбери упражнение чтобы увидеть прогресс:", reply_markup=kb)
+
+
+@dp.callback_query(F.data.startswith("exprog_"))
+async def show_exercise_progress(callback: types.CallbackQuery):
+    ex_name = callback.data[7:]
+    history = await db.get_exercise_history(ex_name, limit=10)
+
+    if not history:
+        await callback.message.answer("Нет записей по этому упражнению.")
+        await callback.answer()
+        return
+
+    text = f"📈 {ex_name}\n\n"
+
+    weights = [h['weight'] for h in history if h['weight'] > 0]
+    if weights:
+        text += f"Лучший вес: {max(weights)} кг\n"
+        text += f"Последний: {history[0]['weight']} кг\n\n"
+
+    text += "История:\n"
+    for h in history:
+        text += f"📅 {h['workout_date']}: {h['weight']} кг x {h['reps']} повт x {h['sets']} подх\n"
+
+    # Прогресс
+    if len(weights) >= 2:
+        diff = round(max(weights) - min(weights), 1)
+        text += f"\nПрогресс: +{diff} кг от минимума до максимума 💪"
+
+    await callback.message.answer(text)
     await callback.answer()

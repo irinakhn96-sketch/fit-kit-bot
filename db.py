@@ -189,3 +189,66 @@ async def delete_last_food_log(log_date: date = None) -> bool:
             await db.commit()
             return True
     return False
+
+
+# ═══════════════════════════════════════════
+# ВЕС ТЕЛА
+# ═══════════════════════════════════════════
+
+async def init_bodyweight_db():
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS body_weight (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                weight REAL NOT NULL,
+                log_date TEXT NOT NULL,
+                note TEXT DEFAULT '',
+                created_at TEXT DEFAULT (datetime('now'))
+            )
+        """)
+        await db.commit()
+
+
+async def save_body_weight(weight: float, log_date: date, note: str = ''):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO body_weight (weight, log_date, note) VALUES (?,?,?)",
+            (weight, log_date.isoformat(), note)
+        )
+        await db.commit()
+
+
+async def get_body_weight_history(limit: int = 30) -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM body_weight ORDER BY log_date DESC, id DESC LIMIT ?",
+            (limit,)
+        )
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
+
+
+async def get_exercise_history(exercise_name: str, limit: int = 10) -> list[dict]:
+    """История результатов по конкретному упражнению"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            """SELECT * FROM workout_logs
+               WHERE exercise LIKE ? AND weight > 0
+               ORDER BY workout_date DESC, id DESC LIMIT ?""",
+            (f"%{exercise_name[:20]}%", limit)
+        )
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
+
+
+async def get_all_exercises_with_logs() -> list[str]:
+    """Все упражнения у которых есть записи с весом"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            """SELECT DISTINCT exercise FROM workout_logs
+               WHERE weight > 0 ORDER BY exercise"""
+        )
+        rows = await cursor.fetchall()
+        return [row[0] for row in rows]
