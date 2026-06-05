@@ -423,10 +423,10 @@ body{display:flex;flex-direction:column;max-width:430px;margin:0 auto}
         <option value="post">🏋️ После трени</option><option value="dinner">🌙 Ужин</option>
       </select>
     </div>
-    <div style="position:relative;border-radius:10px;overflow:hidden;background:#000;margin-bottom:8px;aspect-ratio:4/3">
-      <video id="bc-video" style="width:100%;height:100%;object-fit:cover;display:block" playsinline autoplay muted></video>
-      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
-        <div style="width:180px;height:100px;border:2px solid var(--accent);border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,0.5)"></div>
+    <div style="position:relative;border-radius:10px;overflow:hidden;background:#000;margin-bottom:8px;height:220px">
+      <div id="bc-video" style="width:100%;height:100%"></div>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
+        <div style="width:200px;height:110px;border:2px solid var(--accent);border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,0.45)"></div>
       </div>
     </div>
     <div id="bc-status" style="text-align:center;font-size:12px;color:var(--text2);margin-bottom:8px">Наведи камеру на штрихкод</div>
@@ -511,7 +511,7 @@ body{display:flex;flex-direction:column;max-width:430px;margin:0 auto}
   </div>
 </div>
 
-<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 <script>
 // ═══════════════ DATA ═══════════════
 
@@ -976,84 +976,57 @@ function addFoodEntry(name,meal,g,cal100,p100,f100,c100){
 }
 
 // BARCODE
-let bcReader=null,bcStream=null,bcProduct=null;
+let bcStream=null,bcProduct=null,bcRunning=false;
+
 function openBarcode(){
-  bcProduct=null;
+  bcProduct=null;bcRunning=false;
   document.getElementById('bc-result').style.display='none';
   document.getElementById('bc-add-btn').style.display='none';
-  document.getElementById('bc-status').innerHTML='<span style="animation:pulse 1.5s infinite">📡 Наведи камеру на штрихкод...</span>';
+  setBcStatus('📡 Запускаю камеру...');
   document.getElementById('m-barcode').classList.add('on');
-  setTimeout(startCamera,400);
+  setTimeout(startQuagga,600);
 }
-async function startCamera(){
+
+function setBcStatus(msg){document.getElementById('bc-status').innerHTML=msg}
+
+function startQuagga(){
   try{
-    const video=document.getElementById('bc-video');
-    bcStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280}}});
-    video.srcObject=bcStream;await video.play();
-    if(window.ZXing)startDecoding(video);
-    else setTimeout(()=>startDecoding(video),1000);
-  }catch{document.getElementById('bc-status').textContent='❌ Нет доступа к камере. Разреши в настройках Safari.'}
-}
-function startDecoding(video){
-  bcReader=new ZXing.BrowserMultiFormatReader();
-  bcReader.decodeFromVideoElement(video,async(result,err)=>{
-    if(result){
-      const code=result.getText();
-      document.getElementById('bc-status').textContent='✅ Код: '+code+' — ищу...';
-      stopCamera();await lookupBarcode(code);
-    }
-  });
-}
-async function lookupBarcode(code){
-  document.getElementById('bc-status').textContent='🔍 Ищу в базе FatSecret...';
-  // Try FatSecret first via Render
-  try{
-    const resp=await fetch(API_BASE+'/api/food/barcode?code='+encodeURIComponent(code));
-    if(resp.ok){
-      const data=await resp.json();
-      if(data.food){
-        const f=data.food;
-        const dn=f.name+(f.brand&&!f.name.toLowerCase().includes(f.brand.toLowerCase())?` (${f.brand})`:'');
-        bcProduct={name:dn,cal:f.cal,p:f.p,f:f.f,c:f.c};
-        document.getElementById('bc-prod-name').textContent=dn;
-        document.getElementById('bc-prod-kbzhu').textContent=`${f.cal} ккал | Б:${f.p}г | Ж:${f.f}г | У:${f.c}г на 100г`;
-        document.getElementById('bc-grams').value='100';
-        document.getElementById('bc-result').style.display='block';
-        document.getElementById('bc-add-btn').style.display='block';
-        document.getElementById('bc-status').textContent='🎯 Продукт найден!';
+    Quagga.init({
+      inputStream:{name:"Live",type:"LiveStream",
+        target:document.getElementById('bc-video'),
+        constraints:{facingMode:"environment",width:{min:640,ideal:1280},height:{min:480,ideal:720}}
+      },
+      locator:{patchSize:"medium",halfSample:true},
+      numOfWorkers:0,
+      decoder:{readers:["ean_reader","ean_8_reader","upc_reader","upc_e_reader","code_128_reader"]},
+      locate:true
+    },function(err){
+      if(err){
+        setBcStatus('❌ Нет доступа к камере.<br><small>Разреши: Safari → Настройки → Камера</small>');
         return;
       }
-    }
-  }catch{}
-  // Fallback to Open Food Facts
-  document.getElementById('bc-status').textContent='🔍 Ищу в Open Food Facts...';
-  try{
-    const resp=await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
-    const data=await resp.json();
-    if(data.status===1){
-      const p=data.product;
-      const name=p.product_name_ru||p.product_name||p.generic_name||'';
-      const brand=(p.brands||'').split(',')[0].trim();
-      const n=p.nutriments||{};
-      let cal=n['energy-kcal_100g']||n['energy-kcal']||0;
-      if(!cal){const kj=n['energy_100g']||0;cal=kj?Math.round(kj/4.184):0}
-      const pr=n['proteins_100g']||0,ft=n['fat_100g']||0,cb=n['carbohydrates_100g']||0;
-      if(name&&cal){
-        const dn=name+(brand&&!name.toLowerCase().includes(brand.toLowerCase())?` (${brand})`:'');
-        bcProduct={name:dn,cal:Math.round(cal*10)/10,p:Math.round(pr*10)/10,f:Math.round(ft*10)/10,c:Math.round(cb*10)/10};
-        document.getElementById('bc-prod-name').textContent=dn;
-        document.getElementById('bc-prod-kbzhu').textContent=`${bcProduct.cal} ккал | Б:${bcProduct.p}г | Ж:${bcProduct.f}г | У:${bcProduct.c}г на 100г`;
-        document.getElementById('bc-grams').value='100';
-        document.getElementById('bc-result').style.display='block';
-        document.getElementById('bc-add-btn').style.display='block';
-        document.getElementById('bc-status').textContent='🎯 Найдено!';
-        return;
-      }
-    }
-    document.getElementById('bc-status').textContent='❌ Продукт не найден. Попробуй вручную.';
-  }catch{document.getElementById('bc-status').textContent='❌ Ошибка. Попробуй снова.'}
+      bcRunning=true;
+      setBcStatus('<span style="animation:pulse 1.5s infinite">📡 Наведи на штрихкод...</span>');
+      Quagga.start();
+      Quagga.onDetected(onBarcodeDetected);
+    });
+  }catch(e){setBcStatus('❌ Ошибка: '+e.message)}
 }
-function stopCamera(){if(bcReader){try{bcReader.reset()}catch{}bcReader=null}if(bcStream){bcStream.getTracks().forEach(t=>t.stop());bcStream=null}}
+
+async function onBarcodeDetected(result){
+  if(!bcRunning)return;
+  const code=result.codeResult.code;
+  if(!code||code.length<6)return;
+  bcRunning=false;
+  try{Quagga.offDetected(onBarcodeDetected);Quagga.stop();}catch{}
+  setBcStatus('✅ Код: '+code+' | 🔍 Ищу продукт...');
+  await lookupBarcode(code);
+}
+
+function stopCamera(){
+  bcRunning=false;
+  try{Quagga.offDetected(onBarcodeDetected);Quagga.stop();}catch{}
+}
 function closeBarcode(){stopCamera();document.getElementById('m-barcode').classList.remove('on')}
 function addBarcodeFood(){
   if(!bcProduct)return;
