@@ -138,6 +138,7 @@ body{display:flex;flex-direction:column;max-width:430px;margin:0 auto}
 .sr-name{font-size:12px;font-weight:500;margin-bottom:2px}
 .sr-kbzhu{font-size:10px;color:var(--text2)}
 
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
 .phase-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:16px;font-size:11px;background:var(--adim);color:var(--accent);border:1px solid rgba(200,255,71,.18)}
 .blk{background:var(--bg3);border-radius:8px;padding:8px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
 </style>
@@ -195,6 +196,27 @@ body{display:flex;flex-direction:column;max-width:430px;margin:0 auto}
       <div class="kbox"><div class="kval" id="t-p">0</div><div class="klbl">белки г</div></div>
       <div class="kbox"><div class="kval" id="t-f">0</div><div class="klbl">жиры г</div></div>
       <div class="kbox"><div class="kval" id="t-c">0</div><div class="klbl">углев г</div></div>
+    </div>
+    <!-- Calories balance -->
+    <div style="background:var(--bg3);border-radius:9px;padding:10px 12px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-size:10px;color:var(--text2);font-weight:600;letter-spacing:.06em;text-transform:uppercase">Баланс калорий</div>
+        <button onclick="openBurned()" style="background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;font-family:DM Sans">+ Добавить расход</button>
+      </div>
+      <div style="display:flex;gap:0;border-radius:8px;overflow:hidden">
+        <div style="flex:1;background:rgba(200,255,71,0.08);padding:9px 8px;text-align:center;border-right:1px solid var(--border)">
+          <div style="font-family:Unbounded,sans-serif;font-size:15px;font-weight:700;color:var(--accent)" id="bal-eaten">0</div>
+          <div style="font-size:9px;color:var(--text2);margin-top:2px">🍽️ Съедено</div>
+        </div>
+        <div style="flex:1;background:rgba(95,168,255,0.08);padding:9px 8px;text-align:center;border-right:1px solid var(--border)">
+          <div style="font-family:Unbounded,sans-serif;font-size:15px;font-weight:700;color:var(--blue)" id="bal-burned">0</div>
+          <div style="font-size:9px;color:var(--text2);margin-top:2px">🔥 Сожжено</div>
+        </div>
+        <div style="flex:1;padding:9px 8px;text-align:center" id="bal-box">
+          <div style="font-family:Unbounded,sans-serif;font-size:15px;font-weight:700" id="bal-result">0</div>
+          <div style="font-size:9px;color:var(--text2);margin-top:2px" id="bal-label">баланс</div>
+        </div>
+      </div>
     </div>
     <div style="font-size:10px;color:var(--text2);margin-bottom:3px">Калории <span id="cal-pct"></span> от нормы <span id="cal-norm"></span></div>
     <div class="pbar"><div class="pfill" id="cal-bar" style="width:0%"></div></div>
@@ -447,6 +469,37 @@ body{display:flex;flex-direction:column;max-width:430px;margin:0 auto}
   </div>
 </div>
 
+<!-- Burned calories -->
+<div class="ov" id="m-burned">
+  <div class="modal">
+    <div class="modal-t">🔥 Расход калорий</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:14px;text-align:center">
+      Базовый метаболизм учитывается автоматически.<br>Добавь активность вручную.
+    </div>
+    <div style="background:var(--bg3);border-radius:9px;padding:10px 12px;margin-bottom:12px">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px">Быстрый выбор</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <button class="btn sm" onclick="addActivity('Ходьба 30мин',120)" style="background:var(--bg4);color:var(--text);border:1px solid var(--border)">🚶 Ходьба 30мин<br><span style="font-size:10px;color:var(--text2)">~120 ккал</span></button>
+        <button class="btn sm" onclick="addActivity('Бег 30мин',300)" style="background:var(--bg4);color:var(--text);border:1px solid var(--border)">🏃 Бег 30мин<br><span style="font-size:10px;color:var(--text2)">~300 ккал</span></button>
+        <button class="btn sm" onclick="addActivity('Тренировка',350)" style="background:var(--bg4);color:var(--text);border:1px solid var(--border)">🏋️ Тренировка<br><span style="font-size:10px;color:var(--text2)">~350 ккал</span></button>
+        <button class="btn sm" onclick="addActivity('Велосипед 30мин',250)" style="background:var(--bg4);color:var(--text);border:1px solid var(--border)">🚴 Велосипед<br><span style="font-size:10px;color:var(--text2)">~250 ккал</span></button>
+        <button class="btn sm" onclick="addActivity('Йога 60мин',180)" style="background:var(--bg4);color:var(--text);border:1px solid var(--border)">🧘 Йога 60мин<br><span style="font-size:10px;color:var(--text2)">~180 ккал</span></button>
+        <button class="btn sm" onclick="addActivity('Плавание 30мин',280)" style="background:var(--bg4);color:var(--text);border:1px solid var(--border)">🏊 Плавание<br><span style="font-size:10px;color:var(--text2)">~280 ккал</span></button>
+      </div>
+    </div>
+    <div style="background:var(--bg3);border-radius:9px;padding:10px 12px;margin-bottom:12px">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Своя активность</div>
+      <div class="irow">
+        <div class="ig"><label class="lbl">Название</label><input class="inp" id="act-name" type="text" placeholder="Пилатес"></div>
+        <div class="ig"><label class="lbl">Ккал</label><input class="inp" id="act-cal" type="number" placeholder="200"></div>
+      </div>
+      <button class="btn" onclick="addCustomActivity()">Добавить</button>
+    </div>
+    <div id="burned-list" style="margin-bottom:10px"></div>
+    <button class="btn sec" onclick="closeM('m-burned')">Закрыть</button>
+  </div>
+</div>
+
 <!-- YouTube -->
 <div class="ov" id="m-yt">
   <div class="modal">
@@ -536,6 +589,8 @@ const S = {
   progStart: ld('progStart', today),
   workouts: ld('workouts', []),  // finished workout sessions
   wkFeel: 0,
+  burned: ld('burned_'+today, []),  // [{name, cal}]
+  bmr: 1450,  // base metabolic rate
 };
 
 // ═══════════════ NAV ═══════════════
@@ -761,6 +816,16 @@ function renderFood(){
   // Water
   renderWater();
   // Log
+  // Update balance
+  const totalEaten=Math.round(cal);
+  const totalBurned=S.bmr+S.burned.reduce((a,b)=>a+b.cal,0);
+  const balance=totalEaten-totalBurned;
+  document.getElementById('bal-eaten').textContent=totalEaten;
+  document.getElementById('bal-burned').textContent=totalBurned;
+  document.getElementById('bal-result').textContent=(balance>0?'+':'')+balance;
+  document.getElementById('bal-result').style.color=balance>200?'var(--red)':balance<-200?'var(--blue)':'var(--accent)';
+  document.getElementById('bal-label').textContent=balance>0?'профицит':'дефицит';
+
   const byMeal={};
   logs.forEach((l,i)=>{if(!byMeal[l.meal])byMeal[l.meal]=[];byMeal[l.meal].push({...l,idx:i})});
   const list=document.getElementById('f-log');
@@ -818,38 +883,55 @@ function openFood(mode){
   }
 }
 
+const API_BASE = "https://fit-kit-bot.onrender.com";
+
 async function doSearch(){
-  const q=document.getElementById('fs-q').value.trim().toLowerCase();
+  const q=document.getElementById('fs-q').value.trim();
   if(!q){toast('Введи название');return}
   const res=document.getElementById('fs-results');
-  res.innerHTML='<div style="color:var(--text2);font-size:12px;text-align:center;padding:10px">Ищу...</div>';
+  res.innerHTML='<div style="color:var(--text2);font-size:12px;text-align:center;padding:14px">🔍 Ищу в базе FatSecret...</div>';
   document.getElementById('fs-gram-block').style.display='none';
   curFood=null;
   let results=[];
+  // Local first
+  const ql=q.toLowerCase();
   for(const[name,v]of Object.entries(LOCAL_FOODS)){
-    if(name.includes(q)||q.includes(name)||q.split(' ').some(w=>name.includes(w)))
+    if(name.includes(ql)||ql.includes(name)||ql.split(' ').some(w=>w.length>2&&name.includes(w)))
       results.push({name,cal:v[0],p:v[1],f:v[2],c:v[3],src:'local'});
   }
+  // FatSecret via Render proxy
   try{
-    const controller=new AbortController();const tid=setTimeout(()=>controller.abort(),6000);
-    const resp=await fetch(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=6&fields=product_name,nutriments,brands&lc=ru`,{signal:controller.signal});
-    clearTimeout(tid);
+    const resp=await fetch(API_BASE+'/api/food/search?q='+encodeURIComponent(q),{signal:AbortSignal.timeout?AbortSignal.timeout(8000):undefined});
     if(resp.ok){
       const data=await resp.json();
-      for(const p of(data.products||[])){
-        const nm=(p.product_name||'').trim();if(!nm)continue;
-        const n=p.nutriments||{};
-        let cal=n['energy-kcal_100g']||n['energy-kcal']||0;
-        if(!cal){const kj=n['energy_100g']||0;cal=kj?Math.round(kj/4.184):0}
-        const pr=n['proteins_100g']||0,ft=n['fat_100g']||0,cb=n['carbohydrates_100g']||0;
-        if(cal>0){const br=(p.brands||'').split(',')[0].trim();results.push({name:nm+(br&&!nm.toLowerCase().includes(br.toLowerCase())?` (${br})`:''),cal:Math.round(cal*10)/10,p:Math.round(pr*10)/10,f:Math.round(ft*10)/10,c:Math.round(cb*10)/10,src:'off'});}
+      for(const f of(data.foods||[])){
+        if(f.cal>0){
+          const nm=f.name+(f.brand&&!f.name.toLowerCase().includes(f.brand.toLowerCase())?` (${f.brand})`:'');
+          results.push({name:nm,cal:f.cal,p:f.p,f:f.f,c:f.c,src:'fs'});
+        }
       }
     }
-  }catch{}
-  window._sr=results.slice(0,8);
-  if(!window._sr.length){res.innerHTML='<div style="color:var(--text2);font-size:12px;text-align:center;padding:10px">Не найдено. Попробуй «Вручную»</div>';return}
+  }catch(e){
+    // fallback to Open Food Facts
+    try{
+      const resp2=await fetch(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=5&fields=product_name,nutriments,brands`);
+      if(resp2.ok){
+        const d=await resp2.json();
+        for(const p of(d.products||[])){
+          const nm=(p.product_name||'').trim();if(!nm)continue;
+          const n=p.nutriments||{};
+          let cal=n['energy-kcal_100g']||0;if(!cal){const kj=n['energy_100g']||0;cal=kj?Math.round(kj/4.184):0}
+          const pr=n['proteins_100g']||0,ft=n['fat_100g']||0,cb=n['carbohydrates_100g']||0;
+          if(cal>0){const br=(p.brands||'').split(',')[0].trim();results.push({name:nm+(br?` (${br})` :''),cal:Math.round(cal*10)/10,p:Math.round(pr*10)/10,f:Math.round(ft*10)/10,c:Math.round(cb*10)/10,src:'off'});}
+        }
+      }
+    }catch{}
+  }
+  window._sr=results.slice(0,10);
+  if(!window._sr.length){res.innerHTML='<div style="color:var(--text2);font-size:12px;text-align:center;padding:14px">Не найдено. Попробуй «Вручную»</div>';return}
+  const icons={local:'✅',fs:'🥗',off:'🌐'};
   res.innerHTML=window._sr.map((r,i)=>`<div class="sr" onclick="pickFood(${i})">
-    <div class="sr-name">${r.src==='local'?'✅ ':'🌐 '}${r.name}</div>
+    <div class="sr-name">${icons[r.src]||'🌐'} ${r.name}</div>
     <div class="sr-kbzhu">${r.cal} ккал | Б:${r.p}г | Ж:${r.f}г | У:${r.c}г / 100г</div>
   </div>`).join('');
 }
@@ -899,7 +981,7 @@ function openBarcode(){
   bcProduct=null;
   document.getElementById('bc-result').style.display='none';
   document.getElementById('bc-add-btn').style.display='none';
-  document.getElementById('bc-status').textContent='Наведи камеру на штрихкод';
+  document.getElementById('bc-status').innerHTML='<span style="animation:pulse 1.5s infinite">📡 Наведи камеру на штрихкод...</span>';
   document.getElementById('m-barcode').classList.add('on');
   setTimeout(startCamera,400);
 }
@@ -923,6 +1005,28 @@ function startDecoding(video){
   });
 }
 async function lookupBarcode(code){
+  document.getElementById('bc-status').textContent='🔍 Ищу в базе FatSecret...';
+  // Try FatSecret first via Render
+  try{
+    const resp=await fetch(API_BASE+'/api/food/barcode?code='+encodeURIComponent(code));
+    if(resp.ok){
+      const data=await resp.json();
+      if(data.food){
+        const f=data.food;
+        const dn=f.name+(f.brand&&!f.name.toLowerCase().includes(f.brand.toLowerCase())?` (${f.brand})`:'');
+        bcProduct={name:dn,cal:f.cal,p:f.p,f:f.f,c:f.c};
+        document.getElementById('bc-prod-name').textContent=dn;
+        document.getElementById('bc-prod-kbzhu').textContent=`${f.cal} ккал | Б:${f.p}г | Ж:${f.f}г | У:${f.c}г на 100г`;
+        document.getElementById('bc-grams').value='100';
+        document.getElementById('bc-result').style.display='block';
+        document.getElementById('bc-add-btn').style.display='block';
+        document.getElementById('bc-status').textContent='🎯 Продукт найден!';
+        return;
+      }
+    }
+  }catch{}
+  // Fallback to Open Food Facts
+  document.getElementById('bc-status').textContent='🔍 Ищу в Open Food Facts...';
   try{
     const resp=await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
     const data=await resp.json();
@@ -1080,6 +1184,32 @@ function getBlock(){
 }
 
 // ═══════════════ INIT ═══════════════
+
+function openBurned(){
+  renderBurnedList();
+  document.getElementById('act-name').value='';
+  document.getElementById('act-cal').value='';
+  document.getElementById('m-burned').classList.add('on');
+}
+function renderBurnedList(){
+  const list=document.getElementById('burned-list');
+  if(!S.burned.length){list.innerHTML='';return}
+  list.innerHTML='<div style="font-size:11px;color:var(--text2);margin-bottom:6px">Сегодня:</div>'+
+    S.burned.map((a,i)=>`<div class="hi"><span>${a.name}</span><div style="display:flex;align-items:center;gap:8px"><span style="color:var(--blue);font-weight:600">-${a.cal} ккал</span><button onclick="delBurned(${i})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:15px">×</button></div></div>`).join('');
+}
+function addActivity(name,cal){
+  S.burned.push({name,cal});sv('burned_'+today,S.burned);
+  renderBurnedList();renderFood();toast('🔥 Добавлено: -'+cal+' ккал');
+}
+function addCustomActivity(){
+  const name=document.getElementById('act-name').value.trim();
+  const cal=parseInt(document.getElementById('act-cal').value)||0;
+  if(!name||!cal){toast('Введи название и калории');return}
+  addActivity(name,cal);
+  document.getElementById('act-name').value='';
+  document.getElementById('act-cal').value='';
+}
+function delBurned(i){S.burned.splice(i,1);sv('burned_'+today,S.burned);renderBurnedList();renderFood()}
 
 function init(){
   document.getElementById('w-date').textContent=fmtDate(today);

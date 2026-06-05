@@ -701,12 +701,136 @@ async def on_shutdown(app):
     await bot.delete_webhook()
 
 
+import json
+import base64
+import hashlib
+import hmac
+import time
+import urllib.parse
+
+FS_CLIENT_ID = os.getenv("FS_CLIENT_ID", "e456ebcc0c7f45ae8e492a2324015fba")
+FS_CLIENT_SECRET = os.getenv("FS_CLIENT_SECRET", "b5c7bc3ed31843219081421b838835e7")
+_fs_token = {"token": "", "expires": 0}
+
+
+async def get_fs_token():
+    if time.time() < _fs_token["expires"] - 60:
+        return _fs_token["token"]
+    async with aiohttp.ClientSession() as session:
+        resp = await session.post(
+            "https://oauth.fatsecret.com/connect/token",
+            data={"grant_type": "client_credentials", "scope": "basic"},
+            auth=aiohttp.BasicAuth(FS_CLIENT_ID, FS_CLIENT_SECRET)
+        )
+        data = await resp.json()
+        _fs_token["token"] = data["access_token"]
+        _fs_token["expires"] = time.time() + data.get("expires_in", 86400)
+        return _fs_token["token"]
+
+
+async def fs_search_handler(request):
+    headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+    }
+    if request.method == "OPTIONS":
+        return web.Response(headers=headers)
+    q = request.query.get("q", "")
+    if not q:
+        return web.json_response({"foods": []}, headers=headers)
+    try:
+        token = await get_fs_token()
+        async with aiohttp.ClientSession() as session:
+            resp = await session.get(
+                "https://platform.fatsecret.com/rest/server.api",
+                params={"method": "foods.search", "search_expression": q,
+                        "format": "json", "max_results": 10, "language": "ru"},
+                headers={"Authorization": f"Bearer {token}"}
+            )
+            data = await resp.json()
+            foods = data.get("foods", {}).get("food", [])
+            if isinstance(foods, dict):
+                foods = [foods]
+            result = []
+            for f in foods:
+                desc = f.get("food_description", "")
+                # Parse: Per 100g - Calories: 113kcal | Fat: 1.90g | Carbs: 0.38g | Protein: 23.62g
+                import re
+                cal = re.search(r'Calories:\s*([\d.]+)', desc)
+                fat = re.search(r'Fat:\s*([\d.]+)', desc)
+                carbs = re.search(r'Carbs:\s*([\d.]+)', desc)
+                prot = re.search(r'Protein:\s*([\d.]+)', desc)
+                result.append({
+                    "name": f.get("food_name", ""),
+                    "brand": f.get("brand_name", ""),
+                    "cal": float(cal.group(1)) if cal else 0,
+                    "p": float(prot.group(1)) if prot else 0,
+                    "f": float(fat.group(1)) if fat else 0,
+                    "c": float(carbs.group(1)) if carbs else 0,
+                })
+            return web.json_response({"foods": result}, headers=headers)
+    except Exception as e:
+        logger.error(f"FatSecret error: {e}")
+        return web.json_response({"foods": [], "error": str(e)}, headers=headers)
+
+
+async def fs_barcode_handler(request):
+    headers = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS"}
+    if request.method == "OPTIONS":
+        return web.Response(headers=headers)
+    code = request.query.get("code", "")
+    if not code:
+        return web.json_response({"food": None}, headers=headers)
+    try:
+        token = await get_fs_token()
+        async with aiohttp.ClientSession() as session:
+            resp = await session.get(
+                "https://platform.fatsecret.com/rest/server.api",
+                params={"method": "food.find_id_for_barcode", "barcode": code, "format": "json"},
+                headers={"Authorization": f"Bearer {token}"}
+            )
+            data = await resp.json()
+            food_id = data.get("food_id", {}).get("value")
+            if not food_id:
+                return web.json_response({"food": None}, headers=headers)
+            resp2 = await session.get(
+                "https://platform.fatsecret.com/rest/server.api",
+                params={"method": "food.get.v2", "food_id": food_id, "format": "json"},
+                headers={"Authorization": f"Bearer {token}"}
+            )
+            data2 = await resp2.json()
+            food = data2.get("food", {})
+            servings = food.get("servings", {}).get("serving", [])
+            if isinstance(servings, dict):
+                servings = [servings]
+            per100 = next((s for s in servings if s.get("serving_description", "").lower().startswith("100")), None)
+            if not per100 and servings:
+                per100 = servings[0]
+            if per100:
+                return web.json_response({"food": {
+                    "name": food.get("food_name", ""),
+                    "brand": food.get("brand_name", ""),
+                    "cal": float(per100.get("calories", 0)),
+                    "p": float(per100.get("protein", 0)),
+                    "f": float(per100.get("fat", 0)),
+                    "c": float(per100.get("carbohydrate", 0)),
+                }}, headers=headers)
+    except Exception as e:
+        logger.error(f"FatSecret barcode error: {e}")
+    return web.json_response({"food": None}, headers=headers)
+
+
 def main():
     app = web.Application()
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
     SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path="/webhook")
     setup_application(app, dp, bot=bot)
+    app.router.add_route("GET", "/api/food/search", fs_search_handler)
+    app.router.add_route("OPTIONS", "/api/food/search", fs_search_handler)
+    app.router.add_route("GET", "/api/food/barcode", fs_barcode_handler)
+    app.router.add_route("OPTIONS", "/api/food/barcode", fs_barcode_handler)
     PORT = int(os.getenv("PORT", 8080))
     web.run_app(app, host="0.0.0.0", port=PORT)
 
