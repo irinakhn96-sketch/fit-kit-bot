@@ -6,6 +6,7 @@ Telegram бот для тренировок Ирины
 
 import asyncio
 import logging
+import os
 from datetime import datetime, date
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart, Command
@@ -16,6 +17,8 @@ from aiogram.types import (
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+from aiohttp import web
 
 import db
 from data import NUTRITION, get_today_workout, get_cycle_phase
@@ -501,16 +504,36 @@ async def show_progress(message: types.Message):
 # Запуск
 # ═══════════════════════════════════════════
 
-async def main():
+async def on_startup(app):
     await db.init_db()
     await db.init_food_db()
     await db.init_bodyweight_db()
+    webhook_url = os.getenv("WEBHOOK_URL", "")
+    if webhook_url:
+        await bot.set_webhook(f"{webhook_url}/webhook")
+        logger.info(f"Webhook set: {webhook_url}/webhook")
     logger.info("Бот запущен!")
-    await dp.start_polling(bot)
+
+
+async def on_shutdown(app):
+    await bot.delete_webhook()
+
+
+def main():
+    app = web.Application()
+    app.on_startup.append(on_startup)
+    app.on_shutdown.append(on_shutdown)
+
+    webhook_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
+    webhook_handler.register(app, path="/webhook")
+    setup_application(app, dp, bot=bot)
+
+    PORT = int(os.getenv("PORT", 8080))
+    web.run_app(app, host="0.0.0.0", port=PORT)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
 
 
 # ═══════════════════════════════════════════
