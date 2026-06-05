@@ -889,6 +889,59 @@ async function doSearch(){
   const q=document.getElementById('fs-q').value.trim();
   if(!q){toast('Введи название');return}
   const res=document.getElementById('fs-results');
+  res.innerHTML='<div style="color:var(--text2);font-size:12px;text-align:center;padding:14px">🔍 Ищу...</div>';
+  document.getElementById('fs-gram-block').style.display='none';
+  curFood=null;
+  let results=[];
+  // 1. Local foods
+  const ql=q.toLowerCase();
+  for(const[name,v]of Object.entries(LOCAL_FOODS)){
+    if(name.includes(ql)||ql.includes(name)||ql.split(' ').some(w=>w.length>2&&name.includes(w)))
+      results.push({name:name.charAt(0).toUpperCase()+name.slice(1),cal:v[0],p:v[1],f:v[2],c:v[3],src:'local'});
+  }
+  // 2. Open Food Facts - Russian + World
+  const searches=[
+    `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=8&fields=product_name,product_name_ru,nutriments,brands&lc=ru&cc=ru`,
+    `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=5&fields=product_name,nutriments,brands`
+  ];
+  for(const url of searches){
+    try{
+      const r=await fetch(url);
+      if(!r.ok)continue;
+      const d=await r.json();
+      for(const p of(d.products||[])){
+        const nm=(p.product_name_ru||p.product_name||'').trim();
+        if(!nm||nm.length<2)continue;
+        const n=p.nutriments||{};
+        let cal=n['energy-kcal_100g']||n['energy-kcal']||0;
+        if(!cal){const kj=n['energy_100g']||0;cal=kj?Math.round(kj/4.184):0}
+        const pr=+(n['proteins_100g']||0),ft=+(n['fat_100g']||0),cb=+(n['carbohydrates_100g']||0);
+        if(cal>0&&cal<1000){
+          const br=(p.brands||'').split(',')[0].trim();
+          const full=nm+(br&&!nm.toLowerCase().includes(br.toLowerCase())?` (${br})`:'');
+          if(!results.find(r=>r.name.toLowerCase()===full.toLowerCase()))
+            results.push({name:full,cal:Math.round(cal*10)/10,p:Math.round(pr*10)/10,f:Math.round(ft*10)/10,c:Math.round(cb*10)/10,src:'off'});
+        }
+      }
+      if(results.length>=8)break;
+    }catch{}
+  }
+  window._sr=results.slice(0,10);
+  if(!window._sr.length){
+    res.innerHTML='<div style="color:var(--text2);font-size:12px;text-align:center;padding:14px">Не найдено. Попробуй другое название или «Вручную»</div>';
+    return;
+  }
+  const icons={local:'✅',off:'🌐'};
+  res.innerHTML=window._sr.map((r,i)=>`<div class="sr" onclick="pickFood(${i})">
+    <div class="sr-name">${icons[r.src]||'🌐'} ${r.name}</div>
+    <div class="sr-kbzhu">${r.cal} ккал | Б:${r.p}г | Ж:${r.f}г | У:${r.c}г / 100г</div>
+  </div>`).join('');
+}
+
+async function doSearch(){
+  const q=document.getElementById('fs-q').value.trim();
+  if(!q){toast('Введи название');return}
+  const res=document.getElementById('fs-results');
   res.innerHTML='<div style="color:var(--text2);font-size:12px;text-align:center;padding:14px">🔍 Ищу в базе FatSecret...</div>';
   document.getElementById('fs-gram-block').style.display='none';
   curFood=null;
@@ -1021,6 +1074,74 @@ async function onBarcodeDetected(result){
   try{Quagga.offDetected(onBarcodeDetected);Quagga.stop();}catch{}
   setBcStatus('✅ Код: '+code+' | 🔍 Ищу продукт...');
   await lookupBarcode(code);
+}
+
+async function lookupBarcode(code){
+  setBcStatus('🔍 Ищу продукт по штрихкоду...');
+  const urls=[
+    `https://world.openfoodfacts.org/api/v0/product/${code}.json`,
+    `https://ru.openfoodfacts.org/api/v0/product/${code}.json`,
+  ];
+  for(const url of urls){
+    try{
+      const ctrl=new AbortController();
+      const tid=setTimeout(()=>ctrl.abort(),8000);
+      const resp=await fetch(url,{signal:ctrl.signal});
+      clearTimeout(tid);
+      if(!resp.ok)continue;
+      const data=await resp.json();
+      if(data.status===1){
+        const p=data.product;
+        const name=p.product_name_ru||p.product_name||p.generic_name||'';
+        const brand=(p.brands||'').split(',')[0].trim();
+        const n=p.nutriments||{};
+        let cal=+(n['energy-kcal_100g']||n['energy-kcal']||0);
+        if(!cal){const kj=+(n['energy_100g']||0);cal=kj?Math.round(kj/4.184):0}
+        const pr=+(n['proteins_100g']||0),ft=+(n['fat_100g']||0),cb=+(n['carbohydrates_100g']||0);
+        if(cal>0){
+          const dn=(name||(brand?brand:'Продукт '+code))+(brand&&name&&!name.toLowerCase().includes(brand.toLowerCase())?` (${brand})`:'');
+          bcProduct={name:dn,cal:Math.round(cal*10)/10,p:Math.round(pr*10)/10,f:Math.round(ft*10)/10,c:Math.round(cb*10)/10};
+          document.getElementById('bc-prod-name').textContent=dn;
+          document.getElementById('bc-prod-kbzhu').textContent=`${bcProduct.cal} ккал | Б:${bcProduct.p}г | Ж:${bcProduct.f}г | У:${bcProduct.c}г / 100г`;
+          document.getElementById('bc-grams').value='100';
+          document.getElementById('bc-result').style.display='block';
+          document.getElementById('bc-add-btn').style.display='block';
+          setBcStatus('🎯 Найдено!');
+          return;
+        }
+      }
+    }catch(e){}
+  }
+  // Not found — show manual entry
+  setBcStatus('❌ '+code+' не найден. Введи данные с упаковки:');
+  document.getElementById('bc-result').style.display='block';
+  document.getElementById('bc-prod-name').textContent='';
+  document.getElementById('bc-prod-kbzhu').textContent='';
+  if(!document.getElementById('bc-manual-fields')){
+    document.getElementById('bc-result').insertAdjacentHTML('beforeend',`
+      <div id="bc-manual-fields" style="margin-top:8px">
+        <input class="inp" id="bc-m-name" type="text" placeholder="Название продукта" style="margin-bottom:6px">
+        <div style="display:flex;gap:5px">
+          <input class="inp" id="bc-m-cal" type="number" placeholder="Ккал/100г" style="flex:1">
+          <input class="inp" id="bc-m-p" type="number" placeholder="Белки" style="flex:1">
+          <input class="inp" id="bc-m-f" type="number" placeholder="Жиры" style="flex:1">
+          <input class="inp" id="bc-m-c" type="number" placeholder="Углев" style="flex:1">
+        </div>
+      </div>`);
+  }
+  document.getElementById('bc-add-btn').style.display='block';
+  document.getElementById('bc-add-btn').onclick=function(){
+    const mCal=parseFloat(document.getElementById('bc-m-cal').value)||0;
+    if(!mCal){toast('Введи калории');return}
+    bcProduct={
+      name:document.getElementById('bc-m-name').value.trim()||'Продукт '+code,
+      cal:mCal,
+      p:parseFloat(document.getElementById('bc-m-p').value)||0,
+      f:parseFloat(document.getElementById('bc-m-f').value)||0,
+      c:parseFloat(document.getElementById('bc-m-c').value)||0
+    };
+    addBarcodeFood();
+  };
 }
 
 function stopCamera(){
