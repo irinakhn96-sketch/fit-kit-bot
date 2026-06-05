@@ -23,6 +23,8 @@ import db
 from data import NUTRITION, get_today_workout, get_cycle_phase
 from schedule import get_current_workouts, get_current_block, get_block_info
 from food_data import FOODS, MEAL_TYPES, MEAL_EMOJI, find_food, calc_kbzhu, get_food_list
+from food_search import search_product
+from barcode import decode_barcode_from_url, get_product_by_barcode
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 logging.basicConfig(level=logging.INFO)
@@ -47,6 +49,16 @@ class SetCycleDay(StatesGroup):
 class AddFood(StatesGroup):
     choosing_meal = State()
     entering_food = State()
+    choosing_product = State()
+    entering_grams = State()
+
+class ManualKBZHU(StatesGroup):
+    choosing_meal = State()
+    entering_name = State()
+    entering_calories = State()
+    entering_protein = State()
+    entering_fat = State()
+    entering_carbs = State()
     entering_grams = State()
 
 class LogBodyWeight(StatesGroup):
@@ -93,9 +105,10 @@ def nutrition_keyboard():
 
 def food_menu_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="➕ Добавить еду", callback_data="food_add")],
+        [InlineKeyboardButton(text="🔍 Найти по названию", callback_data="food_add")],
+        [InlineKeyboardButton(text="📷 Сканировать штрихкод", callback_data="food_barcode")],
+        [InlineKeyboardButton(text="✏️ Ввести КБЖУ вручную", callback_data="food_manual")],
         [InlineKeyboardButton(text="📊 Сводка за сегодня", callback_data="food_today")],
-        [InlineKeyboardButton(text="📋 Список продуктов", callback_data="food_list")],
         [InlineKeyboardButton(text="🗑 Удалить последнюю запись", callback_data="food_delete_last")],
     ])
 
@@ -414,14 +427,52 @@ async def cmd_foodlist(message: types.Message):
 
 @dp.message(AddFood.entering_food)
 async def food_enter_name(message: types.Message, state: FSMContext):
-    name, values = find_food(message.text.strip().lower())
-    if not name:
-        await message.answer(f"Продукт '{message.text}' не найден. Попробуй: курица, гречка, яблоко\n/foodlist — полный список")
+    query = message.text.strip()
+    await message.answer(f"🔍 Ищу '{query}'...")
+    products = await search_product(query.lower())
+    if not products:
+        await message.answer(
+            f"Продукт '{query}' не найден.\n\nПопробуй другое название или /foodlist для локальной базы"
+        )
         return
-    cal, p, f, c = values
-    await state.update_data(food_name=name, per100=(cal, p, f, c))
-    await message.answer(f"✅ {name.capitalize()} — на 100г: {cal} ккал | Б:{p}г | Ж:{f}г | У:{c}г\n\nСколько грамм?")
-    await state.set_state(AddFood.entering_grams)
+    if len(products) == 1:
+        p = products[0]
+        await state.update_data(food_name=p['name'], per100=(p['calories'], p['protein'], p['fat'], p['carbs']))
+        await message.answer(
+            f"✅ {p['name']} — на 100г: {p['calories']} ккал | Б:{p['protein']}г | Ж:{p['fat']}г | У:{p['carbs']}г\n\nСколько грамм?"
+        )
+        await state.set_state(AddFood.entering_grams)
+        return
+    # Несколько результатов — показываем выбор
+    text = "Найдено несколько продуктов, выбери нужный:\n\n"
+    buttons = []
+    for i, p in enumerate(products):
+        icon = "✅" if p["source"] == "local" else "🌐"
+        text += f"{i+1}. {icon} {p['name']}\n"
+        text += f"   {p['calories']} ккал | Б:{p['protein']}г | Ж:{p['fat']}г | У:{p['carbs']}г\n\n"
+        name_safe = p['name'][:20].replace("_","")
+        cb = f"pick_{i}_{int(p['calories'])}_{p['protein']}_{p['fat']}_{p['carbs']}_{name_safe}"
+        buttons.append([InlineKeyboardButton(text=f"{i+1}. {p['name'][:40]}", callback_data=cb[:64])])
+    await state.update_data(search_products=products)
+    kb = InlineKeyboardMarkup(inline_keyboard=buttons)
+    await message.answer(text, reply_markup=kb)
+    await state.set_state(AddFood.choosing_product)
+
+
+@dp.callback_query(F.data.startswith("pick_"), AddFood.choosing_product)
+async def food_pick_product(callback: types.CallbackQuery, state: FSMContext):
+    parts = callback.data.split("_", 6)
+    idx = int(parts[1])
+    data = await state.get_data()
+    products = data.get("search_products", [])
+    if idx < len(products):
+        p = products[idx]
+        await state.update_data(food_name=p['name'], per100=(p['calories'], p['protein'], p['fat'], p['carbs']))
+        await callback.message.answer(
+            f"✅ {p['name']}\nНа 100г: {p['calories']} ккал | Б:{p['protein']}г | Ж:{p['fat']}г | У:{p['carbs']}г\n\nСколько грамм?"
+        )
+        await state.set_state(AddFood.entering_grams)
+    await callback.answer()
 
 
 @dp.message(AddFood.entering_grams)
@@ -662,3 +713,217 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ═══════════════════════════════════════════
+# ШТРИХКОД
+# ═══════════════════════════════════════════
+
+class ScanBarcode(StatesGroup):
+    choosing_meal = State()
+    waiting_photo = State()
+    entering_grams = State()
+
+
+@dp.callback_query(F.data == "food_barcode")
+async def barcode_start(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer("Выбери приём пищи:", reply_markup=meal_type_keyboard())
+    await state.set_state(ScanBarcode.choosing_meal)
+    await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("meal_"), ScanBarcode.choosing_meal)
+async def barcode_choose_meal(callback: types.CallbackQuery, state: FSMContext):
+    await state.update_data(meal_type=callback.data[5:])
+    await callback.message.answer(
+        "📷 Сфотографируй штрихкод и отправь фото в чат.\n\n"
+        "Советы для лучшего результата:\n"
+        "• Штрихкод должен занимать большую часть фото\n"
+        "• Хорошее освещение\n"
+        "• Без размытия"
+    )
+    await state.set_state(ScanBarcode.waiting_photo)
+    await callback.answer()
+
+
+@dp.message(ScanBarcode.waiting_photo, F.photo)
+async def barcode_got_photo(message: types.Message, state: FSMContext):
+    await message.answer("🔍 Распознаю штрихкод...")
+
+    # Берём фото максимального качества
+    photo = message.photo[-1]
+    file = await bot.get_file(photo.file_id)
+    file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
+
+    barcode = await decode_barcode_from_url(file_url)
+
+    if not barcode:
+        await message.answer(
+            "❌ Не удалось распознать штрихкод.\n\n"
+            "Попробуй:\n"
+            "• Сфотографировать ближе\n"
+            "• Убедиться что штрихкод чёткий\n"
+            "• Или введи название вручную через 🔍"
+        )
+        await state.clear()
+        return
+
+    await message.answer(f"✅ Штрихкод: {barcode}\n🔍 Ищу продукт...")
+
+    product = await get_product_by_barcode(barcode)
+
+    if not product:
+        await message.answer(
+            f"Продукт со штрихкодом {barcode} не найден в базе.\n"
+            "Попробуй найти по названию или введи КБЖУ вручную."
+        )
+        await state.clear()
+        return
+
+    await state.update_data(
+        food_name=product['name'],
+        per100=(product['calories'], product['protein'], product['fat'], product['carbs'])
+    )
+    await message.answer(
+        f"🎯 Найдено: {product['name']}\n"
+        f"На 100г: {product['calories']} ккал | Б:{product['protein']}г | Ж:{product['fat']}г | У:{product['carbs']}г\n\n"
+        f"Сколько грамм?"
+    )
+    await state.set_state(ScanBarcode.entering_grams)
+
+
+@dp.message(ScanBarcode.entering_grams)
+async def barcode_enter_grams(message: types.Message, state: FSMContext):
+    try:
+        grams = float(message.text.replace(",", "."))
+        if grams <= 0 or grams > 2000:
+            await message.answer("Введи от 1 до 2000 граммов")
+            return
+        data = await state.get_data()
+        cal100, p100, f100, c100 = data['per100']
+        f = grams / 100
+        calories = round(cal100*f, 1)
+        protein = round(p100*f, 1)
+        fat = round(f100*f, 1)
+        carbs = round(c100*f, 1)
+        await db.save_food_log(
+            meal_type=data['meal_type'], food_name=data['food_name'],
+            calories=calories, protein=protein, fat=fat, carbs=carbs,
+            grams=grams, log_date=date.today()
+        )
+        totals = await db.get_food_totals_today()
+        await message.answer(
+            f"✅ Записано!\n{data['food_name']} {grams:.0f}г\n"
+            f"{calories:.0f} ккал | Б:{protein:.1f}г | Ж:{fat:.1f}г | У:{carbs:.1f}г\n\n"
+            f"За сегодня: {totals['calories']:.0f} ккал | Б:{totals['protein']:.1f}г | У:{totals['carbs']:.1f}г",
+            reply_markup=food_menu_keyboard()
+        )
+        await state.clear()
+    except ValueError:
+        await message.answer("Введи число, например: 150")
+
+
+# ═══════════════════════════════════════════
+# ВВОД КБЖУ ВРУЧНУЮ
+# ═══════════════════════════════════════════
+
+@dp.callback_query(F.data == "food_manual")
+async def manual_start(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer("Выбери приём пищи:", reply_markup=meal_type_keyboard())
+    await state.set_state(ManualKBZHU.choosing_meal)
+    await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("meal_"), ManualKBZHU.choosing_meal)
+async def manual_choose_meal(callback: types.CallbackQuery, state: FSMContext):
+    await state.update_data(meal_type=callback.data[5:])
+    await callback.message.answer("Как называется продукт?")
+    await state.set_state(ManualKBZHU.entering_name)
+    await callback.answer()
+
+
+@dp.message(ManualKBZHU.entering_name)
+async def manual_name(message: types.Message, state: FSMContext):
+    await state.update_data(food_name=message.text.strip())
+    await message.answer("Калории на 100г? (например: 250)")
+    await state.set_state(ManualKBZHU.entering_calories)
+
+
+@dp.message(ManualKBZHU.entering_calories)
+async def manual_calories(message: types.Message, state: FSMContext):
+    try:
+        cal = float(message.text.replace(",", "."))
+        await state.update_data(calories=cal)
+        await message.answer("Белки на 100г? (г)")
+        await state.set_state(ManualKBZHU.entering_protein)
+    except ValueError:
+        await message.answer("Введи число, например: 250")
+
+
+@dp.message(ManualKBZHU.entering_protein)
+async def manual_protein(message: types.Message, state: FSMContext):
+    try:
+        p = float(message.text.replace(",", "."))
+        await state.update_data(protein=p)
+        await message.answer("Жиры на 100г? (г)")
+        await state.set_state(ManualKBZHU.entering_fat)
+    except ValueError:
+        await message.answer("Введи число, например: 10")
+
+
+@dp.message(ManualKBZHU.entering_fat)
+async def manual_fat(message: types.Message, state: FSMContext):
+    try:
+        f = float(message.text.replace(",", "."))
+        await state.update_data(fat=f)
+        await message.answer("Углеводы на 100г? (г)")
+        await state.set_state(ManualKBZHU.entering_carbs)
+    except ValueError:
+        await message.answer("Введи число, например: 5")
+
+
+@dp.message(ManualKBZHU.entering_carbs)
+async def manual_carbs(message: types.Message, state: FSMContext):
+    try:
+        c = float(message.text.replace(",", "."))
+        await state.update_data(carbs=c)
+        data = await state.get_data()
+        await message.answer(
+            f"Продукт: {data['food_name']}\n"
+            f"На 100г: {data['calories']} ккал | Б:{data['protein']}г | Ж:{data['fat']}г | У:{c}г\n\n"
+            f"Сколько грамм съела?"
+        )
+        await state.update_data(carbs=c)
+        await state.set_state(ManualKBZHU.entering_grams)
+    except ValueError:
+        await message.answer("Введи число, например: 30")
+
+
+@dp.message(ManualKBZHU.entering_grams)
+async def manual_grams(message: types.Message, state: FSMContext):
+    try:
+        grams = float(message.text.replace(",", "."))
+        if grams <= 0 or grams > 2000:
+            await message.answer("Введи от 1 до 2000 граммов")
+            return
+        data = await state.get_data()
+        f = grams / 100
+        calories = round(data['calories'] * f, 1)
+        protein = round(data['protein'] * f, 1)
+        fat = round(data['fat'] * f, 1)
+        carbs = round(data['carbs'] * f, 1)
+        await db.save_food_log(
+            meal_type=data['meal_type'], food_name=data['food_name'],
+            calories=calories, protein=protein, fat=fat, carbs=carbs,
+            grams=grams, log_date=date.today()
+        )
+        totals = await db.get_food_totals_today()
+        await message.answer(
+            f"✅ Записано!\n{data['food_name']} {grams:.0f}г\n"
+            f"{calories:.0f} ккал | Б:{protein:.1f}г | Ж:{fat:.1f}г | У:{carbs:.1f}г\n\n"
+            f"За сегодня: {totals['calories']:.0f} ккал | Б:{totals['protein']:.1f}г | У:{totals['carbs']:.1f}г",
+            reply_markup=food_menu_keyboard()
+        )
+        await state.clear()
+    except ValueError:
+        await message.answer("Введи число, например: 150")
