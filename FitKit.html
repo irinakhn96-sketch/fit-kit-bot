@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0f">
+<title>FitKit — Ирина</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0f;--bg2:#13131c;--bg3:#1c1c28;--bg4:#242435;
+  --accent:#c8ff47;--accent-dim:rgba(200,255,71,0.12);
+  --red:#ff5f5f;--blue:#5fa8ff;--orange:#ffaa47;
+  --text:#eeeef8;--text2:#7777aa;--text3:#4a4a6a;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --r:14px;--r2:10px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;height:100%;overflow:hidden}
+body{display:flex;flex-direction:column;max-width:430px;margin:0 auto;position:relative}
+
+/* NAV */
+.nav{display:flex;background:rgba(10,10,15,0.96);backdrop-filter:blur(24px);border-top:1px solid var(--border);flex-shrink:0;padding-bottom:env(safe-area-inset-bottom,0px)}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px 8px;background:none;border:none;color:var(--text2);font-size:9px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:color .2s;letter-spacing:.03em}
+.nb.on{color:var(--accent)}
+.nb svg{width:20px;height:20px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+/* SCREENS */
+.scr{display:none;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 14px 24px}
+.scr.on{display:block}
+
+/* HEADER */
+.hdr{padding:52px 0 16px;display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:4px}
+.hdr-title{font-family:'Unbounded',sans-serif;font-size:24px;font-weight:700;letter-spacing:-.02em}
+.dot{color:var(--accent)}
+.hdr-sub{font-size:12px;color:var(--text2);margin-top:3px}
+
+/* CARDS */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:10px}
+.card-t{font-family:'Unbounded',sans-serif;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);margin-bottom:10px}
+
+/* TABS */
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tab{flex:1;padding:9px 4px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;text-align:center;cursor:pointer;font-size:11px;color:var(--text2);font-family:'Unbounded',sans-serif;font-weight:600;transition:all .2s;line-height:1.3}
+.tab.on{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+
+/* EXERCISE */
+.ex{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:13px;margin-bottom:7px;transition:border-color .2s}
+.ex.done{border-color:rgba(200,255,71,.3);opacity:.65}
+.ex-name{font-size:14px;font-weight:500;margin-bottom:3px}
+.ex-meta{font-size:11px;color:var(--text2);margin-bottom:7px}
+.ex-tip{font-size:11px;color:var(--text2);font-style:italic;margin-bottom:9px;line-height:1.45}
+.ex-log{font-size:11px;color:var(--accent);margin-bottom:7px}
+.ex-btns{display:flex;gap:6px}
+.ex-btn{flex:1;padding:7px 6px;border-radius:7px;border:1px solid var(--border);background:var(--bg4);color:var(--text);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;white-space:nowrap}
+.ex-btn.g{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600}
+.yt-btn{display:inline-flex;align-items:center;gap:5px;margin-top:6px;padding:5px 10px;background:rgba(255,95,95,.1);border:1px solid rgba(255,95,95,.25);border-radius:6px;color:var(--red);font-size:11px;text-decoration:none;cursor:pointer}
+
+/* KBZHU */
+.krow{display:flex;gap:6px;margin-bottom:10px}
+.kbox{flex:1;background:var(--bg3);border-radius:9px;padding:9px 6px;text-align:center}
+.kval{font-family:'Unbounded',sans-serif;font-size:15px;font-weight:700;color:var(--accent)}
+.klbl{font-size:9px;color:var(--text2);margin-top:2px}
+
+.pbar{height:3px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:6px}
+.pfill{height:100%;border-radius:3px;background:var(--accent);transition:width .3s}
+
+/* FOOD */
+.meal-sec{margin-bottom:14px}
+.meal-t{font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:500}
+.fi{display:flex;justify-content:space-between;align-items:center;padding:9px 11px;background:var(--bg3);border-radius:9px;margin-bottom:5px}
+.fi-name{font-size:13px}
+.fi-kcal{font-size:11px;color:var(--accent);font-weight:600}
+.fi-del{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:0 4px}
+
+/* WEIGHT */
+.wbig{font-family:'Unbounded',sans-serif;font-size:56px;font-weight:700;color:var(--accent);line-height:1}
+.wunit{font-size:18px;color:var(--text2)}
+.wdelta{font-size:13px;margin-top:6px;color:var(--text2)}
+
+/* PHASE */
+.phase{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:18px;font-size:11px;font-weight:500;background:var(--accent-dim);color:var(--accent);border:1px solid rgba(200,255,71,.18)}
+
+/* BLOCK */
+.blk{background:var(--bg3);border-radius:9px;padding:9px 13px;margin-bottom:13px;display:flex;justify-content:space-between;align-items:center}
+
+/* INPUTS */
+.ig{margin-bottom:10px}
+.lbl{font-size:11px;color:var(--text2);margin-bottom:5px;display:block}
+.inp{width:100%;padding:11px 13px;background:var(--bg3);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;-webkit-appearance:none}
+.inp:focus{border-color:var(--accent)}
+.irow{display:flex;gap:7px}
+.irow .ig{flex:1}
+.sel{width:100%;padding:11px 13px;background:var(--bg3);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;-webkit-appearance:none}
+
+.btn{width:100%;padding:13px;background:var(--accent);color:var(--bg);border:none;border-radius:11px;font-family:'Unbounded',sans-serif;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.04em;transition:opacity .2s}
+.btn:active{opacity:.8}
+.btn.sec{background:var(--bg3);color:var(--text);border:1px solid var(--border);margin-top:7px}
+.btn.sm{width:auto;padding:7px 13px;font-size:11px}
+
+/* MODAL */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);z-index:200;align-items:flex-end;justify-content:center}
+.ov.on{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:20px 20px 0 0;padding:22px 18px 36px;width:100%;max-width:430px;max-height:88vh;overflow-y:auto}
+.modal-t{font-family:'Unbounded',sans-serif;font-size:15px;font-weight:700;margin-bottom:18px;text-align:center}
+
+/* TOAST */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--accent);color:var(--bg);padding:9px 18px;border-radius:18px;font-size:12px;font-weight:600;opacity:0;transition:all .28s;z-index:300;pointer-events:none;white-space:nowrap}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* HISTORY */
+.hi{display:flex;justify-content:space-between;padding:9px 11px;background:var(--bg3);border-radius:9px;margin-bottom:4px;font-size:12px}
+.hi-w{color:var(--accent);font-weight:600}
+
+/* SEARCH RESULTS */
+.sr{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:6px;cursor:pointer;transition:border-color .2s}
+.sr:active{border-color:var(--accent)}
+.sr-name{font-size:13px;font-weight:500;margin-bottom:2px}
+.sr-kbzhu{font-size:11px;color:var(--text2)}
+
+/* CYCLE SCREEN */
+.cycle-phase{text-align:center;padding:24px 0 16px}
+.cp-emoji{font-size:48px;margin-bottom:8px}
+.cp-name{font-family:'Unbounded',sans-serif;font-size:20px;font-weight:700;margin-bottom:6px}
+.cp-day{font-size:13px;color:var(--text2);margin-bottom:14px}
+.cp-tip{background:var(--bg3);border-radius:var(--r2);padding:12px 14px;font-size:13px;line-height:1.55;margin-bottom:14px}
+.phase-row{display:flex;gap:6px;margin-bottom:6px}
+.phase-box{flex:1;background:var(--bg3);border-radius:9px;padding:10px 7px;text-align:center;font-size:10px;color:var(--text2);line-height:1.4}
+.phase-box.cur{border:1px solid var(--accent);color:var(--accent)}
+.phase-icon{font-size:16px;margin-bottom:4px}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- ═══ WORKOUT ═══ -->
+<div class="scr on" id="s-workout">
+  <div class="hdr">
+    <div>
+      <div class="hdr-title">FIT<span class="dot">.</span>KIT</div>
+      <div class="hdr-sub" id="w-date"></div>
+    </div>
+    <div class="phase" id="w-phase"></div>
+  </div>
+  <div class="blk">
+    <div style="font-size:12px;font-weight:500" id="blk-name"></div>
+    <div style="font-size:10px;color:var(--text2)" id="blk-days"></div>
+  </div>
+  <div class="tabs">
+    <div class="tab on" onclick="selDay('A')">А<br><span style="font-size:8px;font-weight:400">Ноги</span></div>
+    <div class="tab" onclick="selDay('B')">Б<br><span style="font-size:8px;font-weight:400">Верх</span></div>
+    <div class="tab" onclick="selDay('C')">В<br><span style="font-size:8px;font-weight:400">Ягодицы</span></div>
+  </div>
+  <div id="ex-list"></div>
+</div>
+
+<!-- ═══ FOOD ═══ -->
+<div class="scr" id="s-food">
+  <div class="hdr">
+    <div><div class="hdr-title">ПИТАНИЕ</div><div class="hdr-sub" id="f-date"></div></div>
+    <div style="display:flex;gap:6px">
+      <button class="btn sm" onclick="openFood('search')">🔍 Найти</button>
+      <button class="btn sm" onclick="openFood('manual')" style="background:var(--bg3);color:var(--text);border:1px solid var(--border)">✏️ Вручную</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-t">За сегодня</div>
+    <div class="krow">
+      <div class="kbox"><div class="kval" id="t-cal">0</div><div class="klbl">ккал</div></div>
+      <div class="kbox"><div class="kval" id="t-p">0</div><div class="klbl">белки г</div></div>
+      <div class="kbox"><div class="kval" id="t-f">0</div><div class="klbl">жиры г</div></div>
+      <div class="kbox"><div class="kval" id="t-c">0</div><div class="klbl">углев г</div></div>
+    </div>
+    <div style="font-size:10px;color:var(--text2);margin-bottom:3px">Калории <span id="cal-pct"></span> от нормы 1500</div>
+    <div class="pbar"><div class="pfill" id="cal-bar" style="width:0%"></div></div>
+    <div style="font-size:10px;color:var(--text2)">Белки <span id="p-pct"></span> от нормы 115г</div>
+    <div class="pbar"><div class="pfill" id="p-bar" style="width:0%;background:var(--blue)"></div></div>
+  </div>
+  <div id="f-log"></div>
+</div>
+
+<!-- ═══ WEIGHT ═══ -->
+<div class="scr" id="s-weight">
+  <div class="hdr">
+    <div><div class="hdr-title">МОЙ ВЕС</div></div>
+    <button class="btn sm" onclick="openWt()">+ Записать</button>
+  </div>
+  <div class="card" style="text-align:center;padding:20px 14px">
+    <div class="wbig" id="cur-wt">—</div>
+    <div class="wunit">кг</div>
+    <div class="wdelta" id="wt-delta"></div>
+    <canvas id="wt-chart" style="margin-top:16px;width:100%;height:90px"></canvas>
+  </div>
+  <div class="card">
+    <div class="card-t">История</div>
+    <div id="wt-hist"></div>
+  </div>
+</div>
+
+<!-- ═══ CYCLE ═══ -->
+<div class="scr" id="s-cycle">
+  <div class="hdr"><div><div class="hdr-title">ЦИКЛ</div></div></div>
+  <div class="card">
+    <div class="cycle-phase">
+      <div class="cp-emoji" id="cp-emoji"></div>
+      <div class="cp-name" id="cp-name"></div>
+      <div class="cp-day" id="cp-day"></div>
+    </div>
+    <div class="cp-tip" id="cp-tip"></div>
+    <div class="phase-row">
+      <div class="phase-box" id="ph0"><div class="phase-icon">🔴</div>Менст.<br>1–7 дн.</div>
+      <div class="phase-box" id="ph1"><div class="phase-icon">🟢</div>Фолл.<br>8–13 дн.</div>
+      <div class="phase-box" id="ph2"><div class="phase-icon">🟡</div>Овул.<br>14–16 дн.</div>
+      <div class="phase-box" id="ph3"><div class="phase-icon">🟠</div>Лютеин.<br>17–28 дн.</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-t">Обновить день цикла</div>
+    <div class="ig">
+      <label class="lbl">День цикла (1–28)</label>
+      <input class="inp" id="cyc-inp" type="number" min="1" max="28" placeholder="8">
+    </div>
+    <button class="btn" onclick="saveCycle()">Сохранить</button>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nb on" onclick="goTo('workout')" id="n-workout">
+    <svg viewBox="0 0 24 24"><path d="M6 4v16M18 4v16M6 12h12M3 8l3-4M21 8l-3-4M3 16l3 4M21 16l-3 4"/></svg>
+    Тренировка
+  </button>
+  <button class="nb" onclick="goTo('food')" id="n-food">
+    <svg viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2M7 2v20M21 15V2a5 5 0 00-5 5v6h3a2 2 0 012 2v2a2 2 0 01-2 2h-3v4"/></svg>
+    Питание
+  </button>
+  <button class="nb" onclick="goTo('weight')" id="n-weight">
+    <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>
+    Вес
+  </button>
+  <button class="nb" onclick="goTo('cycle')" id="n-cycle">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 010 18M12 3c2.5 2 4 5 4 9s-1.5 7-4 9"/></svg>
+    Цикл
+  </button>
+</nav>
+
+<!-- MODALS -->
+
+<!-- Exercise log -->
+<div class="ov" id="m-ex">
+  <div class="modal">
+    <div class="modal-t" id="m-ex-t">Записать результат</div>
+    <div class="irow">
+      <div class="ig"><label class="lbl">Вес кг</label><input class="inp" id="ex-w" type="number" step="0.5" placeholder="35"></div>
+      <div class="ig"><label class="lbl">Повторений</label><input class="inp" id="ex-r" type="number" placeholder="12"></div>
+      <div class="ig"><label class="lbl">Подходов</label><input class="inp" id="ex-s" type="number" placeholder="3"></div>
+    </div>
+    <button class="btn" onclick="saveExLog()">Сохранить</button>
+    <button class="btn sec" onclick="closeM('m-ex')">Отмена</button>
+  </div>
+</div>
+
+<!-- Food search -->
+<div class="ov" id="m-food-search">
+  <div class="modal">
+    <div class="modal-t">Найти продукт</div>
+    <div class="ig"><label class="lbl">Приём пищи</label>
+      <select class="sel" id="fs-meal">
+        <option value="breakfast">🌅 Завтрак</option><option value="snack">🍎 Перекус</option>
+        <option value="lunch">🍽️ Обед</option><option value="pre">💪 До трени</option>
+        <option value="post">🏋️ После трени</option><option value="dinner">🌙 Ужин</option>
+      </select>
+    </div>
+    <div class="ig"><label class="lbl">Название продукта</label>
+      <div style="display:flex;gap:6px">
+        <input class="inp" id="fs-q" type="text" placeholder="Курица, гречка, лосось...">
+        <button class="btn sm" onclick="doSearch()" style="flex-shrink:0">Найти</button>
+      </div>
+    </div>
+    <div id="fs-results"></div>
+    <div class="ig" id="fs-gram-block" style="display:none">
+      <label class="lbl">Граммы</label>
+      <input class="inp" id="fs-grams" type="number" placeholder="150">
+    </div>
+    <button class="btn" id="fs-add-btn" style="display:none" onclick="addFoundFood()">Добавить</button>
+    <button class="btn sec" onclick="closeM('m-food-search')">Отмена</button>
+  </div>
+</div>
+
+<!-- Food manual -->
+<div class="ov" id="m-food-manual">
+  <div class="modal">
+    <div class="modal-t">Добавить вручную</div>
+    <div class="ig"><label class="lbl">Приём пищи</label>
+      <select class="sel" id="fm-meal">
+        <option value="breakfast">🌅 Завтрак</option><option value="snack">🍎 Перекус</option>
+        <option value="lunch">🍽️ Обед</option><option value="pre">💪 До трени</option>
+        <option value="post">🏋️ После трени</option><option value="dinner">🌙 Ужин</option>
+      </select>
+    </div>
+    <div class="ig"><label class="lbl">Название</label><input class="inp" id="fm-name" type="text" placeholder="Куриная грудка"></div>
+    <div class="irow">
+      <div class="ig"><label class="lbl">Ккал/100г</label><input class="inp" id="fm-cal" type="number" placeholder="113"></div>
+      <div class="ig"><label class="lbl">Белки/100г</label><input class="inp" id="fm-p" type="number" placeholder="23"></div>
+    </div>
+    <div class="irow">
+      <div class="ig"><label class="lbl">Жиры/100г</label><input class="inp" id="fm-f" type="number" placeholder="2"></div>
+      <div class="ig"><label class="lbl">Углев/100г</label><input class="inp" id="fm-c" type="number" placeholder="0"></div>
+    </div>
+    <div class="ig"><label class="lbl">Граммы (порция)</label><input class="inp" id="fm-grams" type="number" placeholder="150"></div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:10px">💡 КБЖУ указывается на 100г продукта</div>
+    <button class="btn" onclick="saveManualFood()">Добавить</button>
+    <button class="btn sec" onclick="closeM('m-food-manual')">Отмена</button>
+  </div>
+</div>
+
+<!-- Weight -->
+<div class="ov" id="m-wt">
+  <div class="modal">
+    <div class="modal-t">Записать вес</div>
+    <div class="ig"><label class="lbl">Вес (кг)</label><input class="inp" id="wt-inp" type="number" step="0.1" placeholder="53.2"></div>
+    <div class="ig"><label class="lbl">Заметка</label><input class="inp" id="wt-note" type="text" placeholder="утром, после трени..."></div>
+    <button class="btn" onclick="saveWt()">Сохранить</button>
+    <button class="btn sec" onclick="closeM('m-wt')">Отмена</button>
+  </div>
+</div>
+
+<!-- YouTube viewer -->
+<div class="ov" id="m-yt">
+  <div class="modal">
+    <div class="modal-t" id="m-yt-t">Видео</div>
+    <div style="position:relative;padding-bottom:56.25%;height:0;border-radius:10px;overflow:hidden;margin-bottom:12px">
+      <iframe id="yt-frame" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe>
+    </div>
+    <button class="btn sec" onclick="closeYt()">Закрыть</button>
+  </div>
+</div>
+
+<script>
+// ════════════════ DATA ════════════════
+
+const WK = {
+A:{name:"День А — Ноги / Квадрицепс",exercises:[
+  {name:"Приседания со штангой",sets:"3-4",reps:"20-25",weight:"30-35 кг",tip:"Постановка ног шире плеч. Движение с таза назад. До параллели бедра с полом.",yt:"VGNuRAtOQMs"},
+  {name:"Жим ногами широкая",sets:"5",reps:"15",weight:"70-90 кг",tip:"Ноги шире плеч. Стопы выше середины платформы. Таз не отрывается от сиденья.",yt:"DCG26cqD3rQ"},
+  {name:"Болгарские приседания в Смите",sets:"3",reps:"15 на кажд.",weight:"рабочий",tip:"Наклон корпуса вперёд. Темп вниз 3-4 сек. Давишь в стопу при подъёме.",yt:"Dh_wNsdCufo"},
+  {name:"Разгибания ног в тренажере",sets:"3",reps:"25",weight:"макс.рабочий",tip:"Носки смотрят внутрь. В верхней точке прожим квадрицепса. Вниз медленно.",yt:"0dvpQui5a7I"},
+  {name:"Сгибания ног лёжа",sets:"5",reps:"10",weight:"рабочий",tip:"Таз не отрывается. Тянуться пятками до ягодиц. Вниз плавно.",yt:"TCLEM7xjdb0"},
+  {name:"Разведение ног в тренажере",sets:"3",reps:"15",weight:"рабочий",tip:"Разводим в обычном темпе, сводим предельно медленно."}
+]},
+B:{name:"День Б — Верх / Спина / Плечи",exercises:[
+  {name:"Подтягивания с резинкой",sets:"5",reps:"max",weight:"резинка",tip:"Корпус чуть назад. Тянуть локти к корпусу. Сводить лопатки. Медленно вниз.",yt:"uJGJ1Rdys3I"},
+  {name:"Тяга вертикального блока за голову",sets:"3-4",reps:"8-12",weight:"рабочий",tip:"Спина вертикальная. Движение от локтей в стороны. До уровня ушей.",yt:"AmmNds4XVHU"},
+  {name:"Тяга вертикального блока узким хватом",sets:"3-4",reps:"8-15",weight:"рабочий",tip:"Плечи вниз перед стартом. Довели локти к корпусу — свели лопатки.",yt:"mlhPYiLSWEI"},
+  {name:"Жим штанги на наклонной скамье",sets:"4",reps:"10-12",weight:"рабочий",tip:"Хват шире плеч. Локти под 45°. Полная амплитуда.",yt:"KNilOj1M4_8"},
+  {name:"Жим Арнольда стоя",sets:"4",reps:"12-20",weight:"5-8 кг",tip:"Спина прямая. Пресс в напряжении. Темп средний.",yt:"6iZk8no8D3A"},
+  {name:"Разгибания на блоке с канатом",sets:"3",reps:"15-20",weight:"рабочий",tip:"Корпус зафиксирован. Внизу пиковое сокращение трицепса.",yt:"FWO0U5uBEwI"},
+  {name:"Альпинист",sets:"3",reps:"80",weight:"вес тела",tip:"Пресс в напряжении весь подход. Таз не задирать. Кисти под плечами.",yt:"RfdqSn4Mono"}
+]},
+C:{name:"День В — Ягодицы / Задняя поверхность",exercises:[
+  {name:"Ягодичный мостик со штангой + резинка",sets:"4",reps:"15-20",weight:"60 кг",tip:"Опора — лопатки. Голень вертикальная. В конце пауза 2-3 сек с прожимом ягодицы.",yt:"pb-eJ0Jz4k8"},
+  {name:"Становая тяга сумо",sets:"3",reps:"15",weight:"до 30 кг",tip:"Спина прогнута. Руки прямые. Двигают ноги — потом дотягивает спина. Вниз медленно.",yt:"weibXw5NJjM"},
+  {name:"Зашагивания на тумбу",sets:"3",reps:"10 на кажд.",weight:"гантель",tip:"Движение с таза назад. Наклон корпуса вперёд. Опускаем медленно.",yt:"e7Fd0EETdk0"},
+  {name:"Отведение ноги назад в кроссовере",sets:"3",reps:"12 на кажд.",weight:"рабочий",tip:"Поясница неподвижна. Работает только тазобедренный сустав. Пауза вверху.",yt:"zVCmr6Wumdc"},
+  {name:"Экстензия с весом",sets:"3-4",reps:"15",weight:"рабочий",tip:"Подушки на 4-5 см ниже тазобедренного. Вниз медленно — чувствуй растяжение.",yt:"02eW1R_ZYxA"},
+  {name:"Боковая планка с резинкой",sets:"5",reps:"10-15/сторону",weight:"резинка",tip:"Отводи бедро вверх как в тренажере отведений. Нижним бедром упирайся коленом в пол.",yt:"B4J9klVtYdg"}
+]}};
+
+const MEAL_L = {breakfast:"🌅 Завтрак",snack:"🍎 Перекус",lunch:"🍽️ Обед",pre:"💪 До трени",post:"🏋️ После трени",dinner:"🌙 Ужин"};
+
+const LOCAL_FOODS = {
+  "куриная грудка":[113,23.6,1.9,0.4],"курица":[113,23.6,1.9,0.4],
+  "индейка":[84,19.2,0.7,0],"говядина":[187,18.9,12.4,0],
+  "лосось":[208,20,13.4,0],"форель":[97,19.2,2.1,0],
+  "тунец":[96,23,1,0],"треска":[69,16,0.4,0],"креветки":[97,18.9,2.2,0],
+  "творог":[101,18,4,1.3],"яйцо":[157,12.7,11.5,0.7],
+  "яйцо перепелиное":[168,11.9,13.1,0.6],
+  "гречка":[313,12.6,3.3,57.1],"рис":[344,6.7,0.7,78.9],
+  "овсянка":[366,13,6.9,55],"перловка":[315,10.4,1.3,65.8],
+  "брокколи":[34,2.8,0.4,6.6],"шпинат":[22,2.9,0.4,3.6],
+  "огурец":[14,0.8,0.1,2.5],"помидор":[20,1.1,0.2,3.7],
+  "морковь":[33,1.3,0.1,6.9],"картофель":[80,2,0.4,16.3],
+  "авокадо":[160,2,14.7,1.8],"яблоко":[52,0.3,0.2,13.8],
+  "черника":[44,0.7,0.5,9.7],"клубника":[32,0.8,0.4,7.5],
+  "персик":[39,0.9,0.1,9.5],"груша":[42,0.4,0.3,10.9]
+};
+
+// ════════════════ STATE ════════════════
+
+const today = new Date().toISOString().split('T')[0];
+function ld(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}}
+function sv(k,v){localStorage.setItem(k,JSON.stringify(v))}
+
+const S = {
+  day:'A',
+  curEx:null,
+  curFood:null,
+  wLogs: ld('wkLogs',{}),
+  fLogs: ld('fLogs',{}),
+  wtLogs: ld('wtLogs',[]),
+  done: ld('done',{}),
+  cycDay: ld('cycDay',8),
+  progStart: ld('progStart',today)
+};
+
+// ════════════════ NAV ════════════════
+
+function goTo(n){
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  document.getElementById('s-'+n).classList.add('on');
+  document.getElementById('n-'+n).classList.add('on');
+  if(n==='food')renderFood();
+  if(n==='weight')renderWeight();
+  if(n==='cycle')renderCycle();
+}
+
+// ════════════════ WORKOUT ════════════════
+
+function selDay(d){
+  S.day=d;
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('on',['A','B','C'][i]===d));
+  renderEx();
+}
+
+function renderEx(){
+  const list=document.getElementById('ex-list');
+  const wk=WK[S.day];
+  const dk=today+'_'+S.day;
+  const done=S.done[dk]||[];
+  list.innerHTML=wk.exercises.map((ex,i)=>{
+    const isDone=done.includes(i);
+    const lk=today+'_'+S.day+'_'+i;
+    const log=S.wLogs[lk];
+    return `<div class="ex ${isDone?'done':''}">
+      <div class="ex-name">${isDone?'✅ ':''}${ex.name}</div>
+      <div class="ex-meta">📌 ${ex.sets} × ${ex.reps}${ex.weight?' | '+ex.weight:''}</div>
+      ${ex.tip?`<div class="ex-tip">💡 ${ex.tip}</div>`:''}
+      ${log?`<div class="ex-log">⚡ ${log.w}кг × ${log.r}повт × ${log.s}подх</div>`:''}
+      ${ex.yt?`<a class="yt-btn" onclick="openYt('${ex.yt}','${ex.name.replace(/'/g,"\\'")}')">▶ Смотреть технику</a>`:''}
+      <div class="ex-btns" style="margin-top:8px">
+        <button class="ex-btn ${isDone?'g':''}" onclick="markDone(${i})">${isDone?'✅ Готово':'✓ Выполнил(а)'}</button>
+        <button class="ex-btn" onclick="openExLog(${i},'${ex.name.replace(/'/g,"\\'")}')">📝 Записать</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function markDone(i){
+  const k=today+'_'+S.day;
+  if(!S.done[k])S.done[k]=[];
+  if(!S.done[k].includes(i)){S.done[k].push(i);sv('done',S.done);renderEx();toast('✅ Отмечено!')}
+}
+
+function openExLog(i,name){
+  S.curEx={i,name};
+  document.getElementById('m-ex-t').textContent=name;
+  ['ex-w','ex-r','ex-s'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('m-ex').classList.add('on');
+}
+
+function saveExLog(){
+  const w=parseFloat(document.getElementById('ex-w').value)||0;
+  const r=parseInt(document.getElementById('ex-r').value)||0;
+  const s=parseInt(document.getElementById('ex-s').value)||0;
+  if(!r){toast('Введи повторения');return}
+  const k=today+'_'+S.day+'_'+S.curEx.i;
+  S.wLogs[k]={w,r,s,name:S.curEx.name};
+  sv('wkLogs',S.wLogs);
+  markDone(S.curEx.i);
+  closeM('m-ex');
+  toast('💪 Записано!');
+}
+
+// ════════════════ YOUTUBE ════════════════
+
+function openYt(id,name){
+  document.getElementById('m-yt-t').textContent=name;
+  const embed=id.length===11?`https://www.youtube.com/embed/${id}?autoplay=1`:`https://www.youtube.com/embed/${id}`;
+  document.getElementById('yt-frame').src=embed;
+  document.getElementById('m-yt').classList.add('on');
+}
+function closeYt(){
+  document.getElementById('yt-frame').src='';
+  document.getElementById('m-yt').classList.remove('on');
+}
+
+// ════════════════ FOOD ════════════════
+
+function renderFood(){
+  document.getElementById('f-date').textContent=fmtDate(today);
+  const logs=S.fLogs[today]||[];
+  let cal=0,p=0,f=0,c=0;
+  logs.forEach(l=>{cal+=l.cal;p+=l.p;f+=l.f;c+=l.c});
+  document.getElementById('t-cal').textContent=Math.round(cal);
+  document.getElementById('t-p').textContent=p.toFixed(1);
+  document.getElementById('t-f').textContent=f.toFixed(1);
+  document.getElementById('t-c').textContent=c.toFixed(1);
+  const cp=Math.min(Math.round(cal/1500*100),100);
+  const pp=Math.min(Math.round(p/115*100),100);
+  document.getElementById('cal-pct').textContent=cp+'%';
+  document.getElementById('p-pct').textContent=pp+'%';
+  document.getElementById('cal-bar').style.width=cp+'%';
+  document.getElementById('p-bar').style.width=pp+'%';
+  const byMeal={};
+  logs.forEach((l,i)=>{if(!byMeal[l.meal])byMeal[l.meal]=[];byMeal[l.meal].push({...l,idx:i})});
+  const list=document.getElementById('f-log');
+  if(!logs.length){list.innerHTML='<div style="text-align:center;color:var(--text2);padding:40px 0;font-size:13px">Нажми «Найти» или «Вручную» чтобы добавить еду</div>';return}
+  list.innerHTML=Object.entries(byMeal).map(([meal,items])=>
+    `<div class="meal-sec"><div class="meal-t">${MEAL_L[meal]||meal}</div>`+
+    items.map(item=>`<div class="fi">
+      <div><div class="fi-name">${item.name} <span style="color:var(--text2);font-size:11px">${item.g}г</span></div>
+      <div style="font-size:10px;color:var(--text2)">Б:${item.p.toFixed(1)} Ж:${item.f.toFixed(1)} У:${item.c.toFixed(1)}</div></div>
+      <div style="text-align:right;display:flex;align-items:center;gap:8px">
+        <div><div class="fi-kcal">${Math.round(item.cal)}</div><div style="font-size:9px;color:var(--text2)">ккал</div></div>
+        <button class="fi-del" onclick="delFood(${item.idx})">×</button>
+      </div>
+    </div>`).join('')+
+    '</div>').join('');
+}
+
+function delFood(idx){
+  S.fLogs[today].splice(idx,1);
+  sv('fLogs',S.fLogs);
+  renderFood();
+  toast('Удалено');
+}
+
+function openFood(mode){
+  if(mode==='search'){
+    document.getElementById('fs-q').value='';
+    document.getElementById('fs-results').innerHTML='';
+    document.getElementById('fs-gram-block').style.display='none';
+    document.getElementById('fs-add-btn').style.display='none';
+    S.curFood=null;
+    document.getElementById('m-food-search').classList.add('on');
+  } else {
+    ['fm-name','fm-cal','fm-p','fm-f','fm-c','fm-grams'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('m-food-manual').classList.add('on');
+  }
+}
+
+async function doSearch(){
+  const q=document.getElementById('fs-q').value.trim().toLowerCase();
+  if(!q){toast('Введи название');return}
+  const res=document.getElementById('fs-results');
+  res.innerHTML='<div style="color:var(--text2);font-size:12px;text-align:center;padding:10px">Ищу...</div>';
+  document.getElementById('fs-gram-block').style.display='none';
+  document.getElementById('fs-add-btn').style.display='none';
+  S.curFood=null;
+  let results=[];
+  // Local first
+  for(const [name,v] of Object.entries(LOCAL_FOODS)){
+    if(name.includes(q)||q.includes(name))results.push({name,cal:v[0],p:v[1],f:v[2],c:v[3],src:'local'});
+  }
+  // Open Food Facts
+  try{
+    const url=`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=5&fields=product_name,nutriments,brands&lc=ru`;
+    const resp=await fetch(url);
+    if(resp.ok){
+      const data=await resp.json();
+      for(const p of (data.products||[])){
+        const nm=(p.product_name||'').trim();
+        if(!nm)continue;
+        const n=p.nutriments||{};
+        let cal=n['energy-kcal_100g']||n['energy-kcal']||0;
+        if(!cal){const kj=n['energy_100g']||0;cal=kj?Math.round(kj/4.184):0}
+        const pr=n['proteins_100g']||0;
+        const ft=n['fat_100g']||0;
+        const cb=n['carbohydrates_100g']||0;
+        if(cal>0){
+          const br=(p.brands||'').split(',')[0].trim();
+          results.push({name:nm+(br&&!nm.toLowerCase().includes(br.toLowerCase())?` (${br})`:''),cal:Math.round(cal*10)/10,p:Math.round(pr*10)/10,f:Math.round(ft*10)/10,c:Math.round(cb*10)/10,src:'off'});
+        }
+      }
+    }
+  }catch(e){}
+  results=results.slice(0,7);
+  if(!results.length){res.innerHTML='<div style="color:var(--text2);font-size:12px;text-align:center;padding:10px">Не найдено. Попробуй «Вручную»</div>';return}
+  res.innerHTML=results.map((r,i)=>`<div class="sr" onclick="pickFood(${i})">
+    <div class="sr-name">${r.src==='local'?'✅ ':'🌐 '}${r.name}</div>
+    <div class="sr-kbzhu">${r.cal} ккал | Б:${r.p}г | Ж:${r.f}г | У:${r.c}г на 100г</div>
+  </div>`).join('');
+  window._sr=results;
+}
+
+function pickFood(i){
+  S.curFood=window._sr[i];
+  document.querySelectorAll('.sr').forEach((el,j)=>{
+    el.style.borderColor=j===i?'var(--accent)':'var(--border)';
+  });
+  document.getElementById('fs-gram-block').style.display='block';
+  document.getElementById('fs-add-btn').style.display='block';
+  document.getElementById('fs-grams').focus();
+}
+
+function addFoundFood(){
+  if(!S.curFood){toast('Выбери продукт');return}
+  const g=parseFloat(document.getElementById('fs-grams').value)||100;
+  const fac=g/100;
+  const meal=document.getElementById('fs-meal').value;
+  if(!S.fLogs[today])S.fLogs[today]=[];
+  S.fLogs[today].push({name:S.curFood.name,meal,g,cal:Math.round(S.curFood.cal*fac*10)/10,p:Math.round(S.curFood.p*fac*10)/10,f:Math.round(S.curFood.f*fac*10)/10,c:Math.round(S.curFood.c*fac*10)/10});
+  sv('fLogs',S.fLogs);
+  closeM('m-food-search');
+  renderFood();
+  toast('✅ Добавлено!');
+}
+
+function saveManualFood(){
+  const name=document.getElementById('fm-name').value.trim();
+  if(!name){toast('Введи название');return}
+  const cal100=parseFloat(document.getElementById('fm-cal').value)||0;
+  const p100=parseFloat(document.getElementById('fm-p').value)||0;
+  const f100=parseFloat(document.getElementById('fm-f').value)||0;
+  const c100=parseFloat(document.getElementById('fm-c').value)||0;
+  const g=parseFloat(document.getElementById('fm-grams').value)||100;
+  const meal=document.getElementById('fm-meal').value;
+  const fac=g/100;
+  if(!S.fLogs[today])S.fLogs[today]=[];
+  S.fLogs[today].push({name,meal,g,cal:Math.round(cal100*fac*10)/10,p:Math.round(p100*fac*10)/10,f:Math.round(f100*fac*10)/10,c:Math.round(c100*fac*10)/10});
+  sv('fLogs',S.fLogs);
+  closeM('m-food-manual');
+  renderFood();
+  toast('✅ Добавлено!');
+}
+
+// ════════════════ WEIGHT ════════════════
+
+function renderWeight(){
+  const logs=S.wtLogs;
+  if(!logs.length){
+    document.getElementById('cur-wt').textContent='—';
+    document.getElementById('wt-delta').textContent='';
+    document.getElementById('wt-hist').innerHTML='<div style="color:var(--text2);font-size:13px;text-align:center;padding:20px">Нажми + чтобы записать вес</div>';
+    return;
+  }
+  const last=logs[logs.length-1];
+  document.getElementById('cur-wt').textContent=last.w;
+  if(logs.length>=2){
+    const diff=(last.w-logs[logs.length-2].w).toFixed(1);
+    const arrow=diff<0?'📉':diff>0?'📈':'➡️';
+    document.getElementById('wt-delta').textContent=`${arrow} ${diff>0?'+':''}${diff} кг с прошлого замера`;
+  }
+  document.getElementById('wt-hist').innerHTML=[...logs].reverse().slice(0,20).map(l=>`<div class="hi"><span>${fmtDate(l.date)}${l.note?' · '+l.note:''}</span><span class="hi-w">${l.w} кг</span></div>`).join('');
+  drawChart(logs.slice(-20));
+}
+
+function drawChart(logs){
+  const c=document.getElementById('wt-chart');
+  const ctx=c.getContext('2d');
+  c.width=c.offsetWidth*(window.devicePixelRatio||1);
+  c.height=90*(window.devicePixelRatio||1);
+  ctx.scale(window.devicePixelRatio||1,window.devicePixelRatio||1);
+  const W=c.offsetWidth,H=90;
+  ctx.clearRect(0,0,W,H);
+  if(logs.length<2)return;
+  const ws=logs.map(l=>l.w);
+  const mn=Math.min(...ws)-.3,mx=Math.max(...ws)+.3;
+  const sx=i=>(i/(logs.length-1))*(W-16)+8;
+  const sy=v=>H-((v-mn)/(mx-mn))*(H-16)-8;
+  // gradient fill
+  const grad=ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'rgba(200,255,71,0.18)');
+  grad.addColorStop(1,'rgba(200,255,71,0)');
+  ctx.beginPath();
+  logs.forEach((l,i)=>i===0?ctx.moveTo(sx(i),sy(l.w)):ctx.lineTo(sx(i),sy(l.w)));
+  ctx.lineTo(sx(logs.length-1),H);ctx.lineTo(sx(0),H);ctx.closePath();
+  ctx.fillStyle=grad;ctx.fill();
+  // line
+  ctx.beginPath();ctx.strokeStyle='#c8ff47';ctx.lineWidth=2;ctx.lineJoin='round';
+  logs.forEach((l,i)=>i===0?ctx.moveTo(sx(i),sy(l.w)):ctx.lineTo(sx(i),sy(l.w)));
+  ctx.stroke();
+  logs.forEach((l,i)=>{ctx.beginPath();ctx.arc(sx(i),sy(l.w),3,0,Math.PI*2);ctx.fillStyle='#c8ff47';ctx.fill()});
+}
+
+function openWt(){
+  document.getElementById('wt-inp').value='';
+  document.getElementById('wt-note').value='';
+  document.getElementById('m-wt').classList.add('on');
+}
+
+function saveWt(){
+  const w=parseFloat(document.getElementById('wt-inp').value);
+  if(!w||w<30||w>200){toast('Введи корректный вес');return}
+  const note=document.getElementById('wt-note').value.trim();
+  S.wtLogs.push({w,date:today,note});
+  sv('wtLogs',S.wtLogs);
+  closeM('m-wt');
+  renderWeight();
+  toast('✅ Записано!');
+}
+
+// ════════════════ CYCLE ════════════════
+
+function renderCycle(){
+  const d=S.cycDay;
+  let emoji,name,tip,phIdx;
+  if(d<=7){emoji='🔴';name='Менструация';tip='Снизь веса на 20–30%. Можно пропустить тренировку — это нормально. Акцент на растяжку и лёгкое кардио.';phIdx=0}
+  else if(d<=13){emoji='🟢';name='Фолликулярная';tip='Сейчас максимальная энергия! Пробуй новые веса, добавляй нагрузку. Это лучшее время для прогресса.';phIdx=1}
+  else if(d<=16){emoji='🟡';name='Овуляция';tip='Пик силы! Максимальная мощность. Следи за техникой — в это время выше риск травм.';phIdx=2}
+  else{emoji='🟠';name='Лютеиновая';tip='Постепенно снижай нагрузку к концу фазы. Больше акцент на технику. Можешь чувствовать усталость — это нормально.';phIdx=3}
+  document.getElementById('cp-emoji').textContent=emoji;
+  document.getElementById('cp-name').textContent=name;
+  document.getElementById('cp-day').textContent=`День ${d} из 28`;
+  document.getElementById('cp-tip').textContent=tip;
+  document.getElementById('cyc-inp').value=d;
+  for(let i=0;i<4;i++)document.getElementById('ph'+i).classList.toggle('cur',i===phIdx);
+  // Update phase badge on workout screen
+  document.getElementById('w-phase').textContent=emoji+' '+name;
+}
+
+function saveCycle(){
+  const d=parseInt(document.getElementById('cyc-inp').value);
+  if(d>=1&&d<=28){S.cycDay=d;sv('cycDay',d);renderCycle();toast('Сохранено!');goTo('workout')}
+  else toast('Введи от 1 до 28');
+}
+
+// ════════════════ BLOCK INFO ════════════════
+
+function getBlock(){
+  const start=new Date(S.progStart);
+  const days=Math.floor((new Date()-start)/86400000);
+  const block=(Math.floor(Math.max(0,days)/14)%4)+1;
+  const dLeft=14-(days%14);
+  const names=['','Блок 1 — База','Блок 2 — Прогрессия','Блок 3 — Вариация','Блок 4 — Пик'];
+  return{block,dLeft,name:names[block]};
+}
+
+// ════════════════ HELPERS ════════════════
+
+function closeM(id){document.getElementById(id).classList.remove('on')}
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('on');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2200);
+}
+
+function fmtDate(d){
+  return new Date(d+'T00:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
+}
+
+// ════════════════ INIT ════════════════
+
+function init(){
+  const bi=getBlock();
+  document.getElementById('w-date').textContent=fmtDate(today);
+  document.getElementById('blk-name').textContent=bi.name;
+  document.getElementById('blk-days').textContent='До смены: '+bi.dLeft+' дн.';
+  renderCycle();
+  renderEx();
+  // Close modals on backdrop click
+  document.querySelectorAll('.ov').forEach(m=>{
+    m.addEventListener('click',e=>{if(e.target===m){if(m.id==='m-yt')closeYt();else m.classList.remove('on')}});
+  });
+}
+
+init();
+</script>
+</body>
+</html>
+<!-- BARCODE SCANNER MODAL - appended -->
+<div class="ov" id="m-barcode">
+  <div class="modal">
+    <div class="modal-t">📷 Сканировать штрихкод</div>
+    <div class="ig"><label class="lbl">Приём пищи</label>
+      <select class="sel" id="bc-meal">
+        <option value="breakfast">🌅 Завтрак</option><option value="snack">🍎 Перекус</option>
+        <option value="lunch">🍽️ Обед</option><option value="pre">💪 До трени</option>
+        <option value="post">🏋️ После трени</option><option value="dinner">🌙 Ужин</option>
+      </select>
+    </div>
+    <div style="position:relative;border-radius:10px;overflow:hidden;background:#000;margin-bottom:10px">
+      <video id="bc-video" style="width:100%;display:block;border-radius:10px" playsinline autoplay muted></video>
+      <div id="bc-overlay" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+        <div style="width:200px;height:120px;border:2px solid var(--accent);border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,0.45)"></div>
+      </div>
+      <div id="bc-status" style="position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:12px;color:white;text-shadow:0 1px 3px rgba(0,0,0,.8)">Наведи камеру на штрихкод</div>
+    </div>
+    <div id="bc-result" style="display:none;background:var(--bg3);border-radius:9px;padding:12px;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:500;margin-bottom:4px" id="bc-prod-name"></div>
+      <div style="font-size:11px;color:var(--text2)" id="bc-prod-kbzhu"></div>
+      <div class="ig" style="margin-top:10px;margin-bottom:0">
+        <label class="lbl">Граммы</label>
+        <input class="inp" id="bc-grams" type="number" placeholder="100">
+      </div>
+    </div>
+    <button class="btn" id="bc-add-btn" style="display:none" onclick="addBarcodeFood()">Добавить</button>
+    <button class="btn sec" onclick="closeBarcode()">Закрыть камеру</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script>
+// ════════ BARCODE SCANNER ════════
+
+let bcReader = null;
+let bcStream = null;
+let bcProduct = null;
+
+function openBarcode() {
+  bcProduct = null;
+  document.getElementById('bc-result').style.display = 'none';
+  document.getElementById('bc-add-btn').style.display = 'none';
+  document.getElementById('bc-status').textContent = 'Наведи камеру на штрихкод';
+  document.getElementById('m-barcode').classList.add('on');
+  setTimeout(startCamera, 300);
+}
+
+async function startCamera() {
+  try {
+    const video = document.getElementById('bc-video');
+    bcStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    video.srcObject = bcStream;
+    await video.play();
+    startDecoding(video);
+  } catch(e) {
+    document.getElementById('bc-status').textContent = 'Нет доступа к камере. Разреши в настройках.';
+  }
+}
+
+function startDecoding(video) {
+  if (!window.ZXing) {
+    setTimeout(() => startDecoding(video), 500);
+    return;
+  }
+  bcReader = new ZXing.BrowserMultiFormatReader();
+  bcReader.decodeFromVideoElement(video, async (result, err) => {
+    if (result) {
+      const code = result.getText();
+      document.getElementById('bc-status').textContent = '✅ Код: ' + code + ' — ищу продукт...';
+      stopCamera();
+      await lookupBarcode(code);
+    }
+  });
+}
+
+async function lookupBarcode(code) {
+  try {
+    const resp = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
+    const data = await resp.json();
+    if (data.status === 1) {
+      const p = data.product;
+      const name = p.product_name_ru || p.product_name || p.generic_name || '';
+      const brand = (p.brands || '').split(',')[0].trim();
+      const n = p.nutriments || {};
+      let cal = n['energy-kcal_100g'] || n['energy-kcal'] || 0;
+      if (!cal) { const kj = n['energy_100g'] || 0; cal = kj ? Math.round(kj / 4.184) : 0; }
+      const pr = n['proteins_100g'] || 0;
+      const ft = n['fat_100g'] || 0;
+      const cb = n['carbohydrates_100g'] || 0;
+      if (name && cal) {
+        const displayName = name + (brand && !name.toLowerCase().includes(brand.toLowerCase()) ? ` (${brand})` : '');
+        bcProduct = { name: displayName, cal: Math.round(cal*10)/10, p: Math.round(pr*10)/10, f: Math.round(ft*10)/10, c: Math.round(cb*10)/10 };
+        document.getElementById('bc-prod-name').textContent = displayName;
+        document.getElementById('bc-prod-kbzhu').textContent = `${bcProduct.cal} ккал | Б:${bcProduct.p}г | Ж:${bcProduct.f}г | У:${bcProduct.c}г на 100г`;
+        document.getElementById('bc-grams').value = '100';
+        document.getElementById('bc-result').style.display = 'block';
+        document.getElementById('bc-add-btn').style.display = 'block';
+        document.getElementById('bc-status').textContent = '🎯 Продукт найден!';
+        return;
+      }
+    }
+    document.getElementById('bc-status').textContent = '❌ Продукт не найден в базе. Попробуй ввести вручную.';
+  } catch(e) {
+    document.getElementById('bc-status').textContent = '❌ Ошибка соединения. Попробуй снова.';
+  }
+}
+
+function stopCamera() {
+  if (bcReader) { try { bcReader.reset(); } catch(e){} bcReader = null; }
+  if (bcStream) { bcStream.getTracks().forEach(t => t.stop()); bcStream = null; }
+}
+
+function closeBarcode() {
+  stopCamera();
+  document.getElementById('m-barcode').classList.remove('on');
+}
+
+function addBarcodeFood() {
+  if (!bcProduct) { toast('Продукт не найден'); return; }
+  const g = parseFloat(document.getElementById('bc-grams').value) || 100;
+  const meal = document.getElementById('bc-meal').value;
+  const fac = g / 100;
+  if (!S.fLogs[today]) S.fLogs[today] = [];
+  S.fLogs[today].push({
+    name: bcProduct.name, meal, g,
+    cal: Math.round(bcProduct.cal * fac * 10) / 10,
+    p: Math.round(bcProduct.p * fac * 10) / 10,
+    f: Math.round(bcProduct.f * fac * 10) / 10,
+    c: Math.round(bcProduct.c * fac * 10) / 10
+  });
+  sv('fLogs', S.fLogs);
+  closeBarcode();
+  goTo('food');
+  renderFood();
+  toast('✅ Добавлено!');
+}
+
+// Patch food screen header to add barcode button
+(function patchFoodHeader() {
+  const orig = window.renderFood;
+  // Already rendered, just update the buttons
+  const fscr = document.getElementById('s-food');
+  const hdr = fscr ? fscr.querySelector('.hdr div:last-child') : null;
+  if (hdr) {
+    const bcBtn = document.createElement('button');
+    bcBtn.className = 'btn sm';
+    bcBtn.textContent = '📷 Штрихкод';
+    bcBtn.style.background = 'var(--bg3)';
+    bcBtn.style.color = 'var(--text)';
+    bcBtn.style.border = '1px solid var(--border)';
+    bcBtn.onclick = openBarcode;
+    hdr.insertBefore(bcBtn, hdr.firstChild);
+  }
+})();
+</script>
